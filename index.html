@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <title>Inspección Rápida</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="drive-dvir-app">
+        <header>
+            <h1 id="vehicle-name">Cargando vehículo...</h1>
+            <p>Lista de defectos asignada</p>
+        </header>
+
+        <main id="app-content">
+            <div id="loading" class="visible">Cargando datos...</div>
+            
+            <div id="inspection-form" class="hidden">
+                <div class="actions-container">
+                    <button id="btn-safe" class="btn btn-primary btn-large">Vehículo Seguro (Sin Defectos)</button>
+                    <button id="btn-show-defects" class="btn btn-secondary">Reportar Defectos</button>
+                </div>
+
+                <div id="defects-container" class="hidden">
+                    <h3>Selecciona los defectos:</h3>
+                    <ul id="defects-list">
+                        <!-- Generado por JS -->
+                    </ul>
+                    
+                    <div class="comments-section">
+                        <label for="inspection-comments">Comentarios adicionales:</label>
+                        <textarea id="inspection-comments" rows="3" placeholder="Añade algún comentario..."></textarea>
+                    </div>
+
+                    <div class="actions-container">
+                        <button id="btn-submit-defects" class="btn btn-danger btn-large">Enviar Inspección con Defectos</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="success-message" class="hidden">
+                <div class="icon-success">✓</div>
+                <h2>Inspección Registrada</h2>
+                <p>La inspección se ha enviado correctamente.</p>
+                <button id="btn-reset" class="btn btn-secondary">Nueva Inspección</button>
+            </div>
+            
+            <div id="error-message" class="hidden">
+                <h2>Error</h2>
+                <p id="error-text">Ocurrió un error al enviar la inspección.</p>
+                <button id="btn-retry" class="btn btn-secondary">Reintentar</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Script de inicialización de Drive Addin -->
+    <script src="js/main.js"></script>
+</body>
+</html>
