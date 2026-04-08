@@ -220,19 +220,20 @@
                         toDate: toDate
                     }
                 }, function(logs) {
-                    // Defectos sin reparar del log anterior que no hayan sido marcados ya
+                    // Incluir TODOS los defectos del log anterior que no estén reparados
+                    // (esto incluye NotRepaired Y NotRequired, ambos deben reconocerse)
                     var previousUnresolved = [];
                     if (logs && logs.length > 0) {
                         var lastLog = logs[logs.length - 1];
                         if (lastLog.defectRemarks) {
                             lastLog.defectRemarks.forEach(function(dr) {
-                                if (dr.repairStatus === 'NotRepaired' && dr.defect && dr.defect.id) {
-                                    // Solo incluir si el conductor no lo selecciono ya
+                                if (dr.repairStatus !== 'Repaired' && dr.defect && dr.defect.id) {
+                                    // Solo incluir si el conductor no lo seleccionó ya
                                     if (newlySelectedIds.indexOf(dr.defect.id) === -1) {
                                         previousUnresolved.push({
                                             defect: { id: dr.defect.id },
-                                            remark: '',
-                                            repairStatus: 'NotRepaired'
+                                            remark: dr.remark || '',
+                                            repairStatus: dr.repairStatus || 'NotRepaired'
                                         });
                                     }
                                 }
@@ -255,10 +256,8 @@
                         });
                         defectLog.defectRemarks = newDefectRemarks.concat(previousUnresolved);
                     } else if (previousUnresolved.length > 0) {
-                        // Incluso en inspeccion segura, hay que reconocer los defectos previos
-                        defectLog.defectRemarks = previousUnresolved.map(function(dr) {
-                            return { defect: dr.defect, remark: '', repairStatus: 'NotRepaired' };
-                        });
+                        // En inspección segura, reconocemos los defectos previos con su estado original
+                        defectLog.defectRemarks = previousUnresolved;
                     }
 
                     api.call('Add', {
