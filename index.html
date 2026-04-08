@@ -240,6 +240,16 @@
                 elInspectionForm.style.display = 'none';
                 elLoading.style.display = 'block';
 
+                var debugLog = function(msg) {
+                    var p = document.createElement('p');
+                    p.style.fontSize = '11px';
+                    p.style.color = '#aa5500'; // Naranja oscuro para distinguirlo
+                    p.innerHTML = '<i>SUBMIT:</i> ' + msg;
+                    elLoading.appendChild(p);
+                };
+
+                debugLog("Iniciando envío. Vehículo seguro = " + isSafe);
+
                 var remark = document.getElementById('inspection-comments').value;
                 var newlySelectedIds = [];
                 if (!isSafe) {
@@ -249,20 +259,25 @@
                         return;
                     }
                     newlySelectedIds = checked.map(function(cb) { return cb.value; });
+                    debugLog(newlySelectedIds.length + " defectos seleccionados.");
                 }
 
-                // Obtenemos un rango sensato de 1 año (365 días). Buscar más allá bloquea / timeout la API de Geotab
-                var fromDate = new Date(Date.now() - 365 * 24 * 3600000).toISOString();
+                // Obtenemos un rango sensato. Buscamos a los últimos 30 días para evitar colapsar la app móvil.
+                var fromDate = new Date(Date.now() - 30 * 24 * 3600000).toISOString();
                 var toDate = new Date().toISOString();
 
-                api.call('Get', {
-                    typeName: 'DVIRLog',
-                    search: {
-                        deviceSearch: { id: currentDevice.id },
-                        fromDate: fromDate,
-                        toDate: toDate
-                    }
-                }, function(logs) {
+                debugLog("Consultando inspecciones previas (30 días)...");
+
+                try {
+                    api.call('Get', {
+                        typeName: 'DVIRLog',
+                        search: {
+                            deviceSearch: { id: currentDevice.id },
+                            fromDate: fromDate,
+                            toDate: toDate
+                        }
+                    }, function(logs) {
+                        debugLog("DVIRLog Get OK. Resultados: " + (logs ? logs.length : 0));
                     var previousUnresolved = [];
                     if (logs && logs.length > 0) {
                         // Asegurarnos de coger de verdad el último log cronológicamente
