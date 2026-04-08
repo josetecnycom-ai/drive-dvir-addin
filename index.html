@@ -72,6 +72,8 @@
             const renderDefects = function() {
                 elDefectsList.innerHTML = '';
 
+                // defectListSearch devuelve los items RAÍZ de la lista b28E9 correctamente
+                // NO expandimos .children para evitar mezclar datos de otras listas
                 api.call('Get', {
                     typeName: 'Defect',
                     search: { defectListSearch: { id: defectListId } }
@@ -83,24 +85,8 @@
                         return;
                     }
 
-                    // Aplanar recursivamente para obtener los ítems individuales
-                    var allDefects = [];
-                    function flattenDefects(items) {
-                        items.forEach(function(d) {
-                            if (d.children && d.children.length > 0) {
-                                flattenDefects(d.children);
-                            } else {
-                                allDefects.push(d);
-                            }
-                        });
-                    }
-                    flattenDefects(defects);
-
-                    if (allDefects.length === 0) {
-                        allDefects = defects;
-                    }
-
-                    renderDefectItems(allDefects);
+                    // Mostrar directamente los items raíz de la lista b28E9 sin expandir hijos
+                    renderDefectItems(defects);
                 }, function(error) {
                     showError('Error cargando defectos: ' + (error.message || error));
                 });
