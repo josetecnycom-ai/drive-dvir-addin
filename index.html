@@ -115,32 +115,79 @@
 
             var renderDefectItems = function(defects) {
                 elDefectsList.innerHTML = '';
-                defects.forEach(function(defect) {
-                    var li = document.createElement('li');
-                    li.style.padding = '12px 0';
-                    li.style.borderBottom = '1px solid #eee';
-                    li.style.display = 'flex';
-                    li.style.alignItems = 'center';
 
-                    var checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.id = 'defect-' + defect.id;
-                    checkbox.value = defect.id;
-                    checkbox.className = 'defect-checkbox';
-                    checkbox.style.width = '24px';
-                    checkbox.style.height = '24px';
-                    checkbox.style.marginRight = '15px';
-                    checkbox.style.flexShrink = '0';
+                defects.forEach(function(item) {
+                    if (item.children && item.children.length > 0) {
+                        // Categoría con hijos → mostrar encabezado + checkboxes indentados
+                        var header = document.createElement('li');
+                        header.style.padding = '14px 0 4px 0';
+                        header.style.fontWeight = 'bold';
+                        header.style.color = '#444';
+                        header.style.fontSize = '14px';
+                        header.style.letterSpacing = '0.5px';
+                        header.style.borderBottom = '2px solid #e0e0e0';
+                        header.style.listStyle = 'none';
+                        header.textContent = '▸ ' + item.name;
+                        elDefectsList.appendChild(header);
 
-                    var label = document.createElement('label');
-                    label.htmlFor = 'defect-' + defect.id;
-                    label.textContent = defect.name;
-                    label.style.cursor = 'pointer';
+                        item.children.forEach(function(child) {
+                            var li = document.createElement('li');
+                            li.style.padding = '10px 0 10px 20px';
+                            li.style.borderBottom = '1px solid #f0f0f0';
+                            li.style.display = 'flex';
+                            li.style.alignItems = 'center';
 
-                    li.appendChild(checkbox);
-                    li.appendChild(label);
-                    elDefectsList.appendChild(li);
+                            var checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.id = 'defect-' + child.id;
+                            checkbox.value = child.id;
+                            checkbox.className = 'defect-checkbox';
+                            checkbox.style.width = '22px';
+                            checkbox.style.height = '22px';
+                            checkbox.style.marginRight = '14px';
+                            checkbox.style.flexShrink = '0';
+
+                            var label = document.createElement('label');
+                            label.htmlFor = 'defect-' + child.id;
+                            label.textContent = child.name;
+                            label.style.cursor = 'pointer';
+                            label.style.fontSize = '15px';
+
+                            li.appendChild(checkbox);
+                            li.appendChild(label);
+                            elDefectsList.appendChild(li);
+                        });
+
+                    } else {
+                        // Categoría sin hijos → es ella misma el defecto a marcar
+                        var li = document.createElement('li');
+                        li.style.padding = '12px 0';
+                        li.style.borderBottom = '1px solid #eee';
+                        li.style.display = 'flex';
+                        li.style.alignItems = 'center';
+
+                        var checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = 'defect-' + item.id;
+                        checkbox.value = item.id;
+                        checkbox.className = 'defect-checkbox';
+                        checkbox.style.width = '24px';
+                        checkbox.style.height = '24px';
+                        checkbox.style.marginRight = '15px';
+                        checkbox.style.flexShrink = '0';
+
+                        var label = document.createElement('label');
+                        label.htmlFor = 'defect-' + item.id;
+                        label.textContent = item.name;
+                        label.style.cursor = 'pointer';
+                        label.style.fontWeight = 'bold';
+
+                        li.appendChild(checkbox);
+                        li.appendChild(label);
+                        elDefectsList.appendChild(li);
+                    }
                 });
+
                 elLoading.style.display = 'none';
                 elInspectionForm.style.display = 'block';
             };
