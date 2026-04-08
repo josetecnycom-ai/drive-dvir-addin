@@ -310,9 +310,17 @@
                                 });
                             }
 
+                            // Preparar el conductor asegurando que tiene un id válido
+                            var driverIdToUse = 'UnknownDriverId';
+                            if (currentDriver && currentDriver.id) {
+                                driverIdToUse = currentDriver.id;
+                            } else if (state && state.driverId) {
+                                driverIdToUse = state.driverId;
+                            }
+
                             var defectLog = {
-                                device: { id: currentDevice.id },
-                                driver: { id: currentDriver.id },
+                                device: { id: currentDevice ? currentDevice.id : 'NoDeviceId' },
+                                driver: { id: driverIdToUse },
                                 dateTime: new Date().toISOString(),
                                 isSafeToOperate: isSafe,
                                 defectList: { id: defectListId },
