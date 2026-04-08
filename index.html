@@ -71,89 +71,109 @@
 
             const renderDefects = () => {
                 elDefectsList.innerHTML = '';
-                
-                api.call("Get", {
-                    typeName: "Defect",
+
+                api.call('Get', {
+                    typeName: 'Defect',
                     search: { defectListSearch: { id: defectListId } }
                 }, function(defects) {
                     if (!defects || defects.length === 0) {
-                        elDefectsList.innerHTML = '<li style="padding: 12px 0;">No se encontraron defectos.</li>';
+                        elDefectsList.innerHTML = '<li style="padding: 12px 0;">No se encontraron defectos en esta lista.</li>';
                         elLoading.style.display = 'none';
                         elInspectionForm.style.display = 'block';
                         return;
                     }
-                    
-                    defects.forEach(defect => {
-                        const li = document.createElement('li');
+
+                    // Aplanar la jerarquía: si un defecto tiene hijos, mostrar los hijos; si no, mostrarlo directamente
+                    var allLeafDefects = [];
+                    function flattenDefects(items) {
+                        items.forEach(function(d) {
+                            if (d.children && d.children.length > 0) {
+                                flattenDefects(d.children);
+                            } else {
+                                allLeafDefects.push(d);
+                            }
+                        });
+                    }
+                    flattenDefects(defects);
+
+                    // Si no hay hojas, mostrar todos los items directamente
+                    if (allLeafDefects.length === 0) {
+                        allLeafDefects = defects;
+                    }
+
+                    elDefectsList.innerHTML = '';
+                    allLeafDefects.forEach(function(defect) {
+                        var li = document.createElement('li');
                         li.style.padding = '12px 0';
                         li.style.borderBottom = '1px solid #eee';
                         li.style.display = 'flex';
                         li.style.alignItems = 'center';
-                        
-                        const checkbox = document.createElement('input');
+
+                        var checkbox = document.createElement('input');
                         checkbox.type = 'checkbox';
                         checkbox.id = 'defect-' + defect.id;
                         checkbox.value = defect.id;
-                        checkbox.classList.add('defect-checkbox');
+                        checkbox.className = 'defect-checkbox';
                         checkbox.style.width = '24px';
                         checkbox.style.height = '24px';
                         checkbox.style.marginRight = '15px';
-                        
-                        const label = document.createElement('label');
+                        checkbox.style.flexShrink = '0';
+
+                        var label = document.createElement('label');
                         label.htmlFor = 'defect-' + defect.id;
                         label.textContent = defect.name;
-                        
+                        label.style.cursor = 'pointer';
+
                         li.appendChild(checkbox);
                         li.appendChild(label);
-                        
                         elDefectsList.appendChild(li);
                     });
-                    
+
                     elLoading.style.display = 'none';
                     elInspectionForm.style.display = 'block';
                 }, function(error) {
-                    showError("Error cargando defectos: " + (error.message || error));
+                    showError('Error cargando defectos: ' + (error.message || error));
                 });
             };
 
             const submitDVIR = (isSafe) => {
                 elInspectionForm.style.display = 'none';
                 elLoading.style.display = 'block';
-                
-                let defectLog = {
+
+                var remark = document.getElementById('inspection-comments').value;
+
+                var defectLog = {
                     device: { id: currentDevice.id },
                     driver: { id: currentDriver.id },
                     dateTime: new Date().toISOString(),
-                    isSafeToOperate: isSafe
+                    isSafeToOperate: isSafe,
+                    defectList: { id: defectListId },  // Requerido por la API
+                    remark: remark || ''
                 };
 
-                let remark = document.getElementById('inspection-comments').value;
-                if(remark) {
-                   defectLog.remark = remark; 
-                }
-
                 if (!isSafe) {
-                    const selectedDefects = Array.from(document.querySelectorAll('.defect-checkbox:checked'))
-                        .map(cb => ({
-                            defect: { id: cb.value },
-                            repairStatus: "NotRepaired"
-                        }));
-                    
-                    if(selectedDefects.length === 0) {
-                         showError("Selecciona al menos un defecto.");
-                         return;
+                    var checked = Array.from(document.querySelectorAll('.defect-checkbox:checked'));
+                    if (checked.length === 0) {
+                        showError('Selecciona al menos un defecto.');
+                        return;
                     }
-                    defectLog.defectRepairs = selectedDefects;
+                    defectLog.defectRemarks = checked.map(function(cb) {
+                        return {
+                            defect: { id: cb.value },
+                            remark: '',
+                            repairStatus: 'NotRepaired'
+                        };
+                    });
                 }
 
-                api.call("Add", {
-                    typeName: "DVIRLog",
+                api.call('Add', {
+                    typeName: 'DVIRLog',
                     entity: defectLog
                 }, function(result) {
                     elLoading.style.display = 'none';
                     elSuccessMessage.style.display = 'block';
                 }, function(error) {
-                    showError("No se pudo enviar la inspección: " + (error.message || error));
+                    showError('No se pudo enviar la inspección: ' + (error.message || error));
                 });
             };
 
