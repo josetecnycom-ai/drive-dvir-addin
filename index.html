@@ -238,8 +238,9 @@
                         var prevDefects = lastLog.defects || lastLog.defectRemarks || [];
                         prevDefects.forEach(function(dr) {
                             if (dr.repairStatus !== 'Repaired' && dr.defect && dr.defect.id) {
-                                // SOLO incluir defectos de nuestra lista b28E9
-                                if (knownDefectIds[dr.defect.id] && newlySelectedIds.indexOf(dr.defect.id) === -1) {
+                                // Incluir TODOS los defectos anteriores sin reparar, sin importar a qué lista
+                                // pertenezcan, ya que la validación de Geotab lo exige estrictamente.
+                                if (newlySelectedIds.indexOf(dr.defect.id) === -1) {
                                     previousUnresolved.push({
                                         defect: { id: dr.defect.id },
                                         remark: dr.remark || '',
