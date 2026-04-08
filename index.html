@@ -310,20 +310,21 @@
                             }
 
                             // Preparar el conductor asegurando que tiene un id válido
-                            var driverIdToUse = 'UnknownDriverId';
+                            var driverIdToUse = '';
                             if (currentDriver && currentDriver.id) {
                                 driverIdToUse = currentDriver.id;
                             } else if (state && state.driverId) {
                                 driverIdToUse = state.driverId;
                             }
 
-                            // Validación súper estricta: Si el ID de driver parece un correo o nombre en lugar de un ID interno, forzamos un rescate
-                            if (driverIdToUse.indexOf('@') !== -1 || driverIdToUse.indexOf(' ') !== -1 || (driverIdToUse !== 'UnknownDriverId' && driverIdToUse.indexOf('b') !== 0 && driverIdToUse.length > 10)) {
-                                debugLog("- AVISO: El id de conductor parecía un email/nombre (" + driverIdToUse + "). Buscándolo activamente...");
-                                // Hacemos un rescate síncrono engañoso dentro del flujo asíncrono para no colapsar la app en este punto crítico.
-                                // Ya que estamos aquí, la única salida segura es intentar enviar sin el conductor mal formado, pero el Add() fallará
-                                // Por tanto, delegamos al bloque catch de la API para que maneje el error, o mejor, lanzamos excepción:
-                                throw new Error("ID de conductor inválido detectado: " + driverIdToUse);
+                            // Validación súper estricta
+                            if (!driverIdToUse || driverIdToUse === 'UnknownDriverId' || driverIdToUse === 'NoUserId') {
+                                throw new Error("No se ha detectado un conductor activo válido para firmar la inspección. Por favor, asegúrate de haber iniciado sesión como conductor en Drive.");
+                            }
+                            
+                            if (driverIdToUse.indexOf('@') !== -1 || driverIdToUse.indexOf(' ') !== -1 || (driverIdToUse.indexOf('b') !== 0 && driverIdToUse.length > 5)) {
+                                debugLog("- AVISO: El id de conductor parece incorrecto (" + driverIdToUse + ").");
+                                throw new Error("El sistema detectó un identificador de usuario inválido (" + driverIdToUse + "). No se puede enviar la inspección.");
                             }
 
                             var defectLog = {
@@ -353,7 +354,7 @@
                                 elSuccessMessage.style.display = 'block';
                             }, function(error) {
                                 debugLog("ERROR en Add DVIRLog: " + (error.message || error));
-                                showError('No se pudo enviar la inspección: ' + (error.message || error));
+                                showError('Payload Rechazado: ' + JSON.stringify(defectLog) + ' || ERROR: ' + (error.message || error));
                             });
 
                         } catch (submitErr) {
@@ -438,8 +439,8 @@
 
                     debugLog("- Empezando focus...");
 
-                    if (!currentDevice || !currentDevice.id) {
-                        elVehicleName.innerHTML = 'No hay un vehículo seleccionado.<br><small style="font-size:12px;">Selecciona un vehículo en Drive primero.</small>';
+                    if (!currentDevice || !currentDevice.id || currentDevice.id === 'NoDeviceId') {
+                        elVehicleName.innerHTML = 'No hay un vehículo seleccionado.<br><small style="font-size:12px; color: #666;">Selecciona un vehículo en Drive primero.</small>';
                         elLoading.style.display = 'none';
                         return;
                     }
