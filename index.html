@@ -234,18 +234,30 @@
                 }, function(logs) {
                     var previousUnresolved = [];
                     if (logs && logs.length > 0) {
-                        var lastLog = logs[logs.length - 1];
+                        // Asegurarnos de coger de verdad el último log cronológicamente
+                        var lastLog = logs.reduce(function(latest, log) {
+                            return (new Date(log.dateTime) > new Date(latest.dateTime)) ? log : latest;
+                        }, logs[0]);
+
                         var prevDefects = lastLog.defects || lastLog.defectRemarks || [];
                         prevDefects.forEach(function(dr) {
-                            if (dr.repairStatus !== 'Repaired' && dr.defect && dr.defect.id) {
-                                // Incluir TODOS los defectos anteriores sin reparar, sin importar a qué lista
-                                // pertenezcan, ya que la validación de Geotab lo exige estrictamente.
-                                if (newlySelectedIds.indexOf(dr.defect.id) === -1) {
-                                    previousUnresolved.push({
-                                        defect: { id: dr.defect.id },
+                            if (dr.repairStatus !== 'Repaired') {
+                                // Comprobar si el conductor lo ha marcado nuevo ahora
+                                var isAlreadySelected = false;
+                                if (dr.defect && dr.defect.id && newlySelectedIds.indexOf(dr.defect.id) !== -1) {
+                                    isAlreadySelected = true;
+                                }
+
+                                if (!isAlreadySelected) {
+                                    var carriedDefect = {
                                         remark: dr.remark || '',
                                         repairStatus: dr.repairStatus || 'NotRepaired'
-                                    });
+                                    };
+                                    // Geotab exige que se conserven los objetos defect y part exactos si existían
+                                    if (dr.defect) carriedDefect.defect = { id: dr.defect.id };
+                                    if (dr.part) carriedDefect.part = { id: dr.part.id };
+                                    
+                                    previousUnresolved.push(carriedDefect);
                                 }
                             }
                         });
