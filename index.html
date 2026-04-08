@@ -381,12 +381,25 @@
                     elErrorMessage.style.display = 'none';
                     elInspectionForm.style.display = 'none';
                     elLoading.style.display = 'block';
+                    var debugLog = function(msg) {
+                        if (elLoading) {
+                            var p = document.createElement('p');
+                            p.style.fontSize = '11px';
+                            p.style.color = '#666';
+                            p.textContent = msg;
+                            elLoading.appendChild(p);
+                        }
+                    };
+
+                    debugLog("- Empezando focus...");
 
                     if (!currentDevice || !currentDevice.id) {
                         elVehicleName.innerHTML = 'No hay un vehículo seleccionado.<br><small style="font-size:12px;">Selecciona un vehículo en Drive primero.</small>';
                         elLoading.style.display = 'none';
                         return;
                     }
+
+                    debugLog("- Vehículo OK: " + currentDevice.id);
 
                     // Intentar obtener conductor del estado primero
                     var rawDriver = state.driver || (state.deviceInfo && state.deviceInfo.driver) || state.driverId;
@@ -398,8 +411,11 @@
                         currentDriver = rawDriver;
                     }
 
+                    debugLog("- Raw driver verificado: " + (currentDriver ? currentDriver.id : 'nulo'));
+
                     // Si no está en el estado, obtener el usuario logueado via API
                     var loadApp = function(driverObj) {
+                        debugLog("- Ejecutando loadApp...");
                         currentDriver = driverObj;
 
                         api.call('Get', {
@@ -415,12 +431,15 @@
                             elVehicleName.textContent = 'Vehículo ' + currentDevice.id;
                         });
 
+                        debugLog("- Pasando a renderDefects...");
                         renderDefects();
                     };
 
                     if (currentDriver && currentDriver.id) {
+                        debugLog("- Llamando loadApp directo.");
                         loadApp(currentDriver);
                     } else {
+                        debugLog("- Buscando driver de respaldo...");
                         // Fallback: obtener el usuario logueado actual a través de la sesión
                         var session = null;
                         try {
@@ -428,12 +447,14 @@
                                 session = api.getSession();
                             }
                         } catch (e) {
-                            // ignorar si no está disponible
+                            debugLog("- Excepción getSession");
                         }
                         
                         var userName = (session && session.userName) ? session.userName : '';
+                        debugLog("- UserName encontrado: " + userName);
                         
                         var fetchFallback = function() {
+                            debugLog("- Iniciando fetchFallback(DriverChange)...");
                             // Último recurso: buscar conductores activos en el vehículo
                             api.call('Get', {
                                 typeName: 'DriverChange',
@@ -454,6 +475,7 @@
                         };
 
                         if (userName) {
+                            debugLog("- Llamando Get User con name=" + userName);
                             api.call('Get', {
                                 typeName: 'User',
                                 search: { name: userName }
