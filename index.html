@@ -72,20 +72,41 @@
             const renderDefects = function() {
                 elDefectsList.innerHTML = '';
 
-                // defectListSearch devuelve los items RAÍZ de la lista b28E9 correctamente
-                // NO expandimos .children para evitar mezclar datos de otras listas
+                // defectListSearch devuelve TODAS las listas (ignora el ID en Drive API)
+                // Filtramos el array para encontrar la lista b28E9 por su ID
                 api.call('Get', {
                     typeName: 'Defect',
                     search: { defectListSearch: { id: defectListId } }
-                }, function(defects) {
-                    if (!defects || defects.length === 0) {
-                        elDefectsList.innerHTML = '<li style="padding:12px 0;">No se encontraron defectos.</li>';
+                }, function(allGroups) {
+                    if (!allGroups || allGroups.length === 0) {
+                        elDefectsList.innerHTML = '<li style="padding:12px 0;">No se encontraron listas de defectos.</li>';
                         elLoading.style.display = 'none';
                         elInspectionForm.style.display = 'block';
                         return;
                     }
 
-                    // Mostrar directamente los items raíz de la lista b28E9 sin expandir hijos
+                    // Buscar la entrada cuyo ID coincide con b28E9
+                    var targetGroup = null;
+                    for (var i = 0; i < allGroups.length; i++) {
+                        if (allGroups[i].id === defectListId) {
+                            targetGroup = allGroups[i];
+                            break;
+                        }
+                    }
+
+                    if (!targetGroup) {
+                        elDefectsList.innerHTML = '<li style="padding:12px 0;">Lista b28E9 no encontrada entre los resultados.</li>';
+                        elLoading.style.display = 'none';
+                        elInspectionForm.style.display = 'block';
+                        return;
+                    }
+
+                    // Mostrar los hijos directos de la lista b28E9
+                    var defects = targetGroup.children || [];
+                    if (defects.length === 0) {
+                        defects = [targetGroup]; // Si no hay hijos, mostrar la propia entrada
+                    }
+
                     renderDefectItems(defects);
                 }, function(error) {
                     showError('Error cargando defectos: ' + (error.message || error));
