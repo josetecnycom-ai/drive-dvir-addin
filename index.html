@@ -239,7 +239,8 @@
                             return (new Date(log.dateTime) > new Date(latest.dateTime)) ? log : latest;
                         }, logs[0]);
 
-                        var prevDefects = lastLog.defects || lastLog.defectRemarks || [];
+                        // En la API actual de Geotab, el array se llama dVIRDefects
+                        var prevDefects = lastLog.dVIRDefects || lastLog.defectRemarks || lastLog.defects || [];
                         prevDefects.forEach(function(dr) {
                             if (dr.repairStatus !== 'Repaired') {
                                 // Comprobar si el conductor lo ha marcado nuevo ahora
@@ -249,14 +250,14 @@
                                 }
 
                                 if (!isAlreadySelected) {
-                                    // Geotab es EXTREMADAMENTE estricto. Clonamos el objeto entero
-                                    // y solo borramos propiedades de rastreo de reparaciones previas
-                                    // o IDs únicos para que lo considere heredado.
-                                    var carriedDefect = Object.assign({}, dr);
-                                    delete carriedDefect.id;
-                                    delete carriedDefect.repairUser;
-                                    delete carriedDefect.repairDateTime;
-
+                                    // Creamos un objeto de defecto limpio para heredar
+                                    var carriedDefect = {
+                                        repairStatus: dr.repairStatus || 'NotRepaired'
+                                    };
+                                    if (dr.defect) carriedDefect.defect = { id: dr.defect.id };
+                                    if (dr.part) carriedDefect.part = { id: dr.part.id };
+                                    // No heredamos los IDs viejos ni comentarios anidados para evitar conflictos
+                                    
                                     previousUnresolved.push(carriedDefect);
                                 }
                             }
@@ -273,12 +274,12 @@
                     };
 
                     if (!isSafe) {
-                        var newDefectRemarks = newlySelectedIds.map(function(id) {
+                        var newDefects = newlySelectedIds.map(function(id) {
                             return { defect: { id: id }, remark: '', repairStatus: 'NotRepaired' };
                         });
-                        defectLog.defectRemarks = newDefectRemarks.concat(previousUnresolved);
+                        defectLog.dVIRDefects = newDefects.concat(previousUnresolved);
                     } else if (previousUnresolved.length > 0) {
-                        defectLog.defectRemarks = previousUnresolved;
+                        defectLog.dVIRDefects = previousUnresolved;
                     }
 
                     api.call('Add', {
@@ -302,7 +303,7 @@
                         remark: remark || ''
                     };
                     if (!isSafe) {
-                        defectLog.defectRemarks = newlySelectedIds.map(function(id) {
+                        defectLog.dVIRDefects = newlySelectedIds.map(function(id) {
                             return { defect: { id: id }, remark: '', repairStatus: 'NotRepaired' };
                         });
                     }
