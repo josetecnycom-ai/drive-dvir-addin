@@ -68,6 +68,7 @@
             let elSuccessMessage = null;
             let elErrorMessage = null;
             let elErrorText = null;
+            var knownDefectIds = {}; // IDs de defectos de la lista b28E9
 
             const renderDefects = function() {
                 elDefectsList.innerHTML = '';
@@ -101,11 +102,22 @@
                         return;
                     }
 
-                    // Mostrar los hijos directos de la lista b28E9
+                    // Guardar los IDs del grupo encontrado para filtrar logs anteriores
+                    knownDefectIds = {};
                     var defects = targetGroup.children || [];
                     if (defects.length === 0) {
-                        defects = [targetGroup]; // Si no hay hijos, mostrar la propia entrada
+                        defects = [targetGroup];
                     }
+                    // Indexar todos los IDs (incluyendo hijos anidados)
+                    function indexDefects(items) {
+                        items.forEach(function(d) {
+                            knownDefectIds[d.id] = true;
+                            if (d.children && d.children.length > 0) {
+                                indexDefects(d.children);
+                            }
+                        });
+                    }
+                    indexDefects(defects);
 
                     renderDefectItems(defects);
                 }, function(error) {
@@ -223,11 +235,11 @@
                     var previousUnresolved = [];
                     if (logs && logs.length > 0) {
                         var lastLog = logs[logs.length - 1];
-                        // Geotab usa 'defects' en versiones recientes, 'defectRemarks' en versiones antiguas
                         var prevDefects = lastLog.defects || lastLog.defectRemarks || [];
                         prevDefects.forEach(function(dr) {
                             if (dr.repairStatus !== 'Repaired' && dr.defect && dr.defect.id) {
-                                if (newlySelectedIds.indexOf(dr.defect.id) === -1) {
+                                // SOLO incluir defectos de nuestra lista b28E9
+                                if (knownDefectIds[dr.defect.id] && newlySelectedIds.indexOf(dr.defect.id) === -1) {
                                     previousUnresolved.push({
                                         defect: { id: dr.defect.id },
                                         remark: dr.remark || '',
