@@ -256,6 +256,12 @@
                                     };
                                     if (dr.defect) carriedDefect.defect = { id: dr.defect.id };
                                     if (dr.part) carriedDefect.part = { id: dr.part.id };
+                                    
+                                    // CRÍTICO: Si el defecto anterior era "NotNecessary", Geotab
+                                    // exige que se conserven también los datos de quién dictaminó eso
+                                    if (dr.repairUser) carriedDefect.repairUser = { id: dr.repairUser.id };
+                                    if (dr.repairDateTime) carriedDefect.repairDateTime = dr.repairDateTime;
+
                                     // No heredamos los IDs viejos ni comentarios anidados para evitar conflictos
                                     
                                     previousUnresolved.push(carriedDefect);
