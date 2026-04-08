@@ -72,39 +72,33 @@
             const renderDefects = function() {
                 elDefectsList.innerHTML = '';
 
-                // Paso 1: Obtener los grupos raíz de la lista b28E9
-                // defectListSearch sí filtra correctamente los items de nivel raíz
                 api.call('Get', {
                     typeName: 'Defect',
                     search: { defectListSearch: { id: defectListId } }
-                }, function(rootGroups) {
-                    if (!rootGroups || rootGroups.length === 0) {
-                        elDefectsList.innerHTML = '<li style="padding:12px 0;">No se encontraron defectos en la lista.</li>';
+                }, function(defects) {
+                    if (!defects || defects.length === 0) {
+                        elDefectsList.innerHTML = '<li style="padding:12px 0;">No se encontraron defectos.</li>';
                         elLoading.style.display = 'none';
                         elInspectionForm.style.display = 'block';
                         return;
                     }
 
-                    // Si los items raíz no tienen hijos, mostramos directamente
-                    var hasChildren = rootGroups.some(function(g) { return g.children && g.children.length > 0; });
-
-                    if (!hasChildren) {
-                        // Los propios grupos son los items marcables
-                        renderDefectItems(rootGroups);
-                        return;
-                    }
-
-                    // Paso 2: Aplanar los hijos de los grupos raíz — estos son los defectos reales
+                    // Aplanar recursivamente para obtener los ítems individuales
                     var allDefects = [];
-                    rootGroups.forEach(function(group) {
-                        if (group.children && group.children.length > 0) {
-                            group.children.forEach(function(child) {
-                                allDefects.push(child);
-                            });
-                        } else {
-                            allDefects.push(group);
-                        }
-                    });
+                    function flattenDefects(items) {
+                        items.forEach(function(d) {
+                            if (d.children && d.children.length > 0) {
+                                flattenDefects(d.children);
+                            } else {
+                                allDefects.push(d);
+                            }
+                        });
+                    }
+                    flattenDefects(defects);
+
+                    if (allDefects.length === 0) {
+                        allDefects = defects;
+                    }
 
                     renderDefectItems(allDefects);
                 }, function(error) {
