@@ -220,8 +220,8 @@
                     newlySelectedIds = checked.map(function(cb) { return cb.value; });
                 }
 
-                // Consultar el DVIRLog anterior (últimos 365 días) para heredar defectos abiertos
-                var fromDate = new Date(Date.now() - 365 * 24 * 3600000).toISOString();
+                // Buscar MUY ATRÁS para garantizarnos encontrar si es que hay un log abierto (hasta 10 años)
+                var fromDate = new Date(Date.now() - 3650 * 24 * 3600000).toISOString();
                 var toDate = new Date().toISOString();
 
                 api.call('Get', {
@@ -249,14 +249,14 @@
                                 }
 
                                 if (!isAlreadySelected) {
-                                    var carriedDefect = {
-                                        remark: dr.remark || '',
-                                        repairStatus: dr.repairStatus || 'NotRepaired'
-                                    };
-                                    // Geotab exige que se conserven los objetos defect y part exactos si existían
-                                    if (dr.defect) carriedDefect.defect = { id: dr.defect.id };
-                                    if (dr.part) carriedDefect.part = { id: dr.part.id };
-                                    
+                                    // Geotab es EXTREMADAMENTE estricto. Clonamos el objeto entero
+                                    // y solo borramos propiedades de rastreo de reparaciones previas
+                                    // o IDs únicos para que lo considere heredado.
+                                    var carriedDefect = Object.assign({}, dr);
+                                    delete carriedDefect.id;
+                                    delete carriedDefect.repairUser;
+                                    delete carriedDefect.repairDateTime;
+
                                     previousUnresolved.push(carriedDefect);
                                 }
                             }
