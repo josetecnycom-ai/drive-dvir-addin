@@ -72,69 +72,78 @@
             const renderDefects = function() {
                 elDefectsList.innerHTML = '';
 
-                // Drive API no soporta DefectList, usamos Defect con defectListSearch
+                // Paso 1: Obtener los grupos raíz de la lista b28E9
+                // defectListSearch sí filtra correctamente los items de nivel raíz
                 api.call('Get', {
                     typeName: 'Defect',
                     search: { defectListSearch: { id: defectListId } }
-                }, function(defects) {
-                    if (!defects || defects.length === 0) {
-                        elDefectsList.innerHTML = '<li style="padding:12px 0;">No se encontraron defectos en la lista (ID: ' + defectListId + ').</li>';
+                }, function(rootGroups) {
+                    if (!rootGroups || rootGroups.length === 0) {
+                        elDefectsList.innerHTML = '<li style="padding:12px 0;">No se encontraron defectos en la lista.</li>';
                         elLoading.style.display = 'none';
                         elInspectionForm.style.display = 'block';
                         return;
                     }
 
-                    // Aplanar recursivamente: mostrar items hoja (sin hijos) de la lista b28E9
-                    var allLeafDefects = [];
-                    function flattenDefects(items) {
-                        items.forEach(function(d) {
-                            if (d.children && d.children.length > 0) {
-                                flattenDefects(d.children);
-                            } else {
-                                allLeafDefects.push(d);
-                            }
-                        });
-                    }
-                    flattenDefects(defects);
+                    // Si los items raíz no tienen hijos, mostramos directamente
+                    var hasChildren = rootGroups.some(function(g) { return g.children && g.children.length > 0; });
 
-                    if (allLeafDefects.length === 0) {
-                        allLeafDefects = defects;
+                    if (!hasChildren) {
+                        // Los propios grupos son los items marcables
+                        renderDefectItems(rootGroups);
+                        return;
                     }
 
-                    elDefectsList.innerHTML = '';
-                    allLeafDefects.forEach(function(defect) {
-                        var li = document.createElement('li');
-                        li.style.padding = '12px 0';
-                        li.style.borderBottom = '1px solid #eee';
-                        li.style.display = 'flex';
-                        li.style.alignItems = 'center';
-
-                        var checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.id = 'defect-' + defect.id;
-                        checkbox.value = defect.id;
-                        checkbox.className = 'defect-checkbox';
-                        checkbox.style.width = '24px';
-                        checkbox.style.height = '24px';
-                        checkbox.style.marginRight = '15px';
-                        checkbox.style.flexShrink = '0';
-
-                        var label = document.createElement('label');
-                        label.htmlFor = 'defect-' + defect.id;
-                        label.textContent = defect.name;
-                        label.style.cursor = 'pointer';
-
-                        li.appendChild(checkbox);
-                        li.appendChild(label);
-                        elDefectsList.appendChild(li);
+                    // Paso 2: Aplanar los hijos de los grupos raíz — estos son los defectos reales
+                    var allDefects = [];
+                    rootGroups.forEach(function(group) {
+                        if (group.children && group.children.length > 0) {
+                            group.children.forEach(function(child) {
+                                allDefects.push(child);
+                            });
+                        } else {
+                            allDefects.push(group);
+                        }
                     });
 
-                    elLoading.style.display = 'none';
-                    elInspectionForm.style.display = 'block';
+                    renderDefectItems(allDefects);
                 }, function(error) {
                     showError('Error cargando defectos: ' + (error.message || error));
                 });
             };
+
+            var renderDefectItems = function(defects) {
+                elDefectsList.innerHTML = '';
+                defects.forEach(function(defect) {
+                    var li = document.createElement('li');
+                    li.style.padding = '12px 0';
+                    li.style.borderBottom = '1px solid #eee';
+                    li.style.display = 'flex';
+                    li.style.alignItems = 'center';
+
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = 'defect-' + defect.id;
+                    checkbox.value = defect.id;
+                    checkbox.className = 'defect-checkbox';
+                    checkbox.style.width = '24px';
+                    checkbox.style.height = '24px';
+                    checkbox.style.marginRight = '15px';
+                    checkbox.style.flexShrink = '0';
+
+                    var label = document.createElement('label');
+                    label.htmlFor = 'defect-' + defect.id;
+                    label.textContent = defect.name;
+                    label.style.cursor = 'pointer';
+
+                    li.appendChild(checkbox);
+                    li.appendChild(label);
+                    elDefectsList.appendChild(li);
+                });
+                elLoading.style.display = 'none';
+                elInspectionForm.style.display = 'block';
+            };
+
 
             const submitDVIR = function(isSafe) {
                 elInspectionForm.style.display = 'none';
