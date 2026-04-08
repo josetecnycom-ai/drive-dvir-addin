@@ -1,4 +1,4 @@
-geotab.addin.ActivityDVIR = function (api, state) {
+geotab.addin.DriveDVIR = function (api, state) {
     let currentDevice = null;
     let currentDriver = null;
     const defectListId = 'b28E9'; // Hardcoded ID de la lista de defectos

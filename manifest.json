@@ -1,17 +1,16 @@
 {
-    "name": "Inspeccion Rapida",
-    "supportEmail": "soporte@tecnoflotas.com",
-    "version": "1.0.0",
-    "items": [
-        {
-            "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/",
-            "path": "ActivityDVIR/",
-            "menuName": {
-                "en": "Quick Inspection",
-                "es": "Inspección Rápida"
-            },
-            "icon": "icon.svg"
-        }
-    ],
-    "isSigned": false
+  "name": "Inspeccion Rapida",
+  "version": "1.0.0",
+  "description": "Inspeccion custom para Geotab Drive",
+  "supportEmail": "support@example.com",
+  "isDriveAddin": true,
+  "items": [
+    {
+       "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/index.html",
+       "path": "DriveDVIR",
+       "menuName": "Inspección Rápida",
+       "icon": "icon.svg"
+    }
+  ],
+  "isSigned": false
 }
