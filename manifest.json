@@ -2,10 +2,11 @@
   "name": "Inspeccion Rapida",
   "version": "1.0.0",
   "supportEmail": "support@example.com",
+  "isDriveAddin": true,
   "items": [
     {
        "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/index.html",
-       "path": "driveAppLink",
+       "path": "DriveDVIR",
        "menuName": {
             "en": "Quick Inspection",
             "es": "Inspección Rápida"
