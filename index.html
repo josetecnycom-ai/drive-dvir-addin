@@ -362,13 +362,86 @@
                     api.call('Add', {
                         typeName: 'DVIRLog',
                         entity: defectLog
-                    }, function() {
-                        elLoading.style.display = 'none';
-                        elSuccessMessage.style.display = 'block';
-                    }, function(error) {
-                        showError('No se pudo enviar la inspección: ' + (error.message || error));
+                        try {
+                            var previousUnresolved = [];
+                            if (logs && logs.length > 0) {
+                                // Asegurarnos de coger de verdad el último log cronológicamente
+                                var lastLog = logs.reduce(function(latest, log) {
+                                    return (new Date(log.dateTime) > new Date(latest.dateTime)) ? log : latest;
+                                }, logs[0]);
+
+                                // En la API actual de Geotab, el array se llama dVIRDefects
+                                var prevDefects = lastLog.dVIRDefects || lastLog.defectRemarks || lastLog.defects || [];
+                                prevDefects.forEach(function(dr) {
+                                    if (dr.repairStatus !== 'Repaired') {
+                                        // Comprobar si el conductor lo ha marcado nuevo ahora
+                                        var isAlreadySelected = false;
+                                        if (dr.defect && dr.defect.id && newlySelectedIds.indexOf(dr.defect.id) !== -1) {
+                                            isAlreadySelected = true;
+                                        }
+
+                                        if (!isAlreadySelected) {
+                                            // Creamos un objeto de defecto limpio para heredar
+                                            var carriedDefect = {
+                                                repairStatus: dr.repairStatus || 'NotRepaired'
+                                            };
+                                            if (dr.defect) carriedDefect.defect = { id: dr.defect.id };
+                                            if (dr.part) carriedDefect.part = { id: dr.part.id };
+                                            
+                                            // CRÍTICO: Si el defecto anterior era "NotNecessary", Geotab
+                                            // exige que se conserven también los datos de quién dictaminó eso
+                                            if (dr.repairUser) carriedDefect.repairUser = { id: dr.repairUser.id };
+                                            if (dr.repairDateTime) carriedDefect.repairDateTime = dr.repairDateTime;
+
+                                            // No heredamos los IDs viejos ni comentarios anidados para evitar conflictos
+                                            
+                                            previousUnresolved.push(carriedDefect);
+                                        }
+                                    }
+                                });
+                            }
+
+                            var defectLog = {
+                                device: { id: currentDevice.id },
+                                driver: { id: currentDriver.id },
+                                dateTime: new Date().toISOString(),
+                                isSafeToOperate: isSafe,
+                                defectList: { id: defectListId },
+                                remark: remark || ''
+                            };
+
+                            if (!isSafe) {
+                                var newDefects = newlySelectedIds.map(function(id) {
+                                    return { defect: { id: id }, remark: '', repairStatus: 'NotRepaired' };
+                                });
+                                defectLog.dVIRDefects = newDefects.concat(previousUnresolved);
+                            } else if (previousUnresolved.length > 0) {
+                                defectLog.dVIRDefects = previousUnresolved;
+                            }
+
+                            api.call('Add', {
+                                typeName: 'DVIRLog',
+                                entity: defectLog
+                            }, function() {
+                                debugLog("Add completado. Redirigiendo a éxito.");
+                                elLoading.style.display = 'none';
+                                elSuccessMessage.style.display = 'block';
+                            }, function(error) {
+                                debugLog("ERROR en Add DVIRLog: " + (error.message || error));
+                                showError('No se pudo enviar la inspección: ' + (error.message || error));
+                            });
+                        } catch (submitErr) {
+                            debugLog("Excepción construyendo envío: " + submitErr.message);
+                            showError('Error construyendo envío: ' + submitErr.message);
+                        }
+                    }, function(getError) {
+                        debugLog("ERROR en Get DVIRLog: " + getError.message);
+                        showError('Error consultando logs previos: ' + (getError.message || getError));
                     });
-                });
+                } catch(globalError) {
+                    debugLog("Excepción global en submitDVIR: " + globalError.message);
+                    showError('Error inesperado: ' + globalError.message);
+                }
             };
 
             const showError = (msg) => {
