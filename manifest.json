@@ -9,8 +9,7 @@
        "menuName": {
             "en": "Quick Inspection",
             "es": "Inspección Rápida"
-        },
-       "icon": "icon.svg"
+        }
     }
   ],
   "isSigned": false
