@@ -282,14 +282,14 @@
                         try {
                             var previousUnresolved = [];
                             if (logs && logs.length > 0) {
-                                // Encontrar el log más reciente de verdad
                                 var lastLog = logs.reduce(function(latest, log) {
                                     return (new Date(log.dateTime) > new Date(latest.dateTime)) ? log : latest;
                                 }, logs[0]);
 
                                 var prevDefects = lastLog.dVIRDefects || lastLog.defectRemarks || lastLog.defects || [];
                                 prevDefects.forEach(function(dr) {
-                                    if (dr.repairStatus !== 'Repaired') {
+                                    // Los defectos marcados como NotNecessary también están "resueltos", no deben heredarse.
+                                    if (dr.repairStatus !== 'Repaired' && dr.repairStatus !== 'NotNecessary') {
                                         var isAlreadySelected = false;
                                         if (dr.defect && dr.defect.id && newlySelectedIds.indexOf(dr.defect.id) !== -1) {
                                             isAlreadySelected = true;
@@ -301,8 +301,7 @@
                                             };
                                             if (dr.defect) carriedDefect.defect = { id: dr.defect.id };
                                             if (dr.part) carriedDefect.part = { id: dr.part.id };
-                                            if (dr.repairUser) carriedDefect.repairUser = { id: dr.repairUser.id };
-                                            if (dr.repairDateTime) carriedDefect.repairDateTime = dr.repairDateTime;
+                                            // Eliminamos por completo la herencia de repairUser aquí, porque si es NotRepaired nunca tiene repairUser.
 
                                             previousUnresolved.push(carriedDefect);
                                         }
@@ -316,6 +315,15 @@
                                 driverIdToUse = currentDriver.id;
                             } else if (state && state.driverId) {
                                 driverIdToUse = state.driverId;
+                            }
+
+                            // Validación súper estricta: Si el ID de driver parece un correo o nombre en lugar de un ID interno, forzamos un rescate
+                            if (driverIdToUse.indexOf('@') !== -1 || driverIdToUse.indexOf(' ') !== -1 || (driverIdToUse !== 'UnknownDriverId' && driverIdToUse.indexOf('b') !== 0 && driverIdToUse.length > 10)) {
+                                debugLog("- AVISO: El id de conductor parecía un email/nombre (" + driverIdToUse + "). Buscándolo activamente...");
+                                // Hacemos un rescate síncrono engañoso dentro del flujo asíncrono para no colapsar la app en este punto crítico.
+                                // Ya que estamos aquí, la única salida segura es intentar enviar sin el conductor mal formado, pero el Add() fallará
+                                // Por tanto, delegamos al bloque catch de la API para que maneje el error, o mejor, lanzamos excepción:
+                                throw new Error("ID de conductor inválido detectado: " + driverIdToUse);
                             }
 
                             var defectLog = {
@@ -443,12 +451,22 @@
                     var currentDriver = null;
                     
                     if (typeof rawDriver === 'string') {
-                        currentDriver = { id: rawDriver };
+                        // Geotab Drive a veces envía el nombre de usuario (email) como un string en lugar del objeto driver. 
+                        // Los IDs internos siempre empiezan por 'b' (ex: b2A). Si tiene arroba o no es 'b...', descartar y dejar que el fallback lo resuelva con API
+                        if (rawDriver.indexOf('@') === -1 && rawDriver.indexOf('b') === 0) {
+                            currentDriver = { id: rawDriver };
+                        } else {
+                            debugLog("- state.driver no es un ID válido. Delegando a API session...");
+                        }
                     } else if (rawDriver && rawDriver.id) {
-                        currentDriver = rawDriver;
+                        if (rawDriver.id.indexOf('@') === -1 && rawDriver.id.indexOf('b') === 0) {
+                            currentDriver = rawDriver;
+                        } else {
+                            debugLog("- state.driver.id no es válido. Delegando a API session...");
+                        }
                     }
 
-                    debugLog("- Raw driver verificado: " + (currentDriver ? currentDriver.id : 'nulo'));
+                    debugLog("- Raw driver pre-verificado: " + (currentDriver ? currentDriver.id : 'nulo (fallback activo)'));
 
                     // Si no está en el estado, obtener el usuario logueado via API
                     var loadApp = function(driverObj) {
