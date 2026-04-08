@@ -389,7 +389,14 @@
                     }
 
                     // Intentar obtener conductor del estado primero
-                    currentDriver = state.driver || (state.deviceInfo && state.deviceInfo.driver);
+                    var rawDriver = state.driver || (state.deviceInfo && state.deviceInfo.driver) || state.driverId;
+                    var currentDriver = null;
+                    
+                    if (typeof rawDriver === 'string') {
+                        currentDriver = { id: rawDriver };
+                    } else if (rawDriver && rawDriver.id) {
+                        currentDriver = rawDriver;
+                    }
 
                     // Si no está en el estado, obtener el usuario logueado via API
                     var loadApp = function(driverObj) {
@@ -414,14 +421,11 @@
                     if (currentDriver && currentDriver.id) {
                         loadApp(currentDriver);
                     } else {
-                        // Fallback: obtener el usuario logueado actual
-                        api.call('Get', {
-                            typeName: 'User',
-                            search: { name: state.userName || '' }
-                        }, function(users) {
-                            if (users && users.length > 0) {
-                                loadApp({ id: users[0].id });
-                            } else {
+                        // Fallback: obtener el usuario logueado actual a través de la sesión
+                        api.getSession(function(session) {
+                            var userName = (session && session.userName) ? session.userName : '';
+                            
+                            var fetchFallback = function() {
                                 // Último recurso: buscar conductores activos en el vehículo
                                 api.call('Get', {
                                     typeName: 'DriverChange',
@@ -439,9 +443,22 @@
                                 }, function() {
                                     loadApp({ id: 'UnknownDriverId' });
                                 });
+                            };
+
+                            if (userName) {
+                                api.call('Get', {
+                                    typeName: 'User',
+                                    search: { name: userName }
+                                }, function(users) {
+                                    if (users && users.length > 0) {
+                                        loadApp({ id: users[0].id });
+                                    } else {
+                                        fetchFallback();
+                                    }
+                                }, function() { fetchFallback(); });
+                            } else {
+                                fetchFallback();
                             }
-                        }, function() {
-                            loadApp({ id: 'UnknownDriverId' });
                         });
                     }
                 },
