@@ -447,32 +447,20 @@
 
                     debugLog("- Vehículo OK: " + currentDevice.id);
 
-                    // Intentar obtener conductor del estado primero
-                    var rawDriver = state.driver || (state.deviceInfo && state.deviceInfo.driver) || state.driverId;
+                    // Intentar obtener conductor del estado local de la APP
+                    var rawDriver = state.driver || (state.deviceInfo && state.deviceInfo.driver) || state.activeUser || state.driverId;
                     var currentDriver = null;
                     
-                    if (typeof rawDriver === 'string') {
-                        // Geotab Drive a veces envía el nombre de usuario (email) como un string en lugar del objeto driver. 
-                        // Los IDs internos siempre empiezan por 'b' (ex: b2A). Si tiene arroba o no es 'b...', descartar y dejar que el fallback lo resuelva con API
-                        if (rawDriver.indexOf('@') === -1 && rawDriver.indexOf('b') === 0) {
-                            currentDriver = { id: rawDriver };
-                        } else {
-                            debugLog("- state.driver no es un ID válido. Delegando a API session...");
-                        }
-                    } else if (rawDriver && rawDriver.id) {
-                        if (rawDriver.id.indexOf('@') === -1 && rawDriver.id.indexOf('b') === 0) {
-                            currentDriver = rawDriver;
-                        } else {
-                            debugLog("- state.driver.id no es válido. Delegando a API session...");
-                        }
-                    }
-
-                    debugLog("- Raw driver pre-verificado: " + (currentDriver ? currentDriver.id : 'nulo (fallback activo)'));
-
-                    // Si no está en el estado, obtener el usuario logueado via API
                     var loadApp = function(driverObj) {
-                        debugLog("- Ejecutando loadApp...");
+                        debugLog("- Ejecutando loadApp resolviendo info de vehículo...");
                         currentDriver = driverObj;
+                        
+                        // Una verificación final vital para protegerse
+                        if (!currentDriver || !currentDriver.id || currentDriver.id === 'UnknownDriverId') {
+                            debugLog("- CRÍTICO: loadApp recibió conductor nulo/Unknown.");
+                            // Forzamos un driver nulo para que el botón muestre el error predecible
+                            currentDriver = { id: '' };
+                        }
 
                         api.call('Get', {
                             typeName: 'Device',
@@ -491,69 +479,75 @@
                         renderDefects();
                     };
 
-                    if (currentDriver && currentDriver.id) {
-                        debugLog("- Llamando loadApp directo.");
-                        loadApp(currentDriver);
-                    } else {
-                        debugLog("- Buscando driver de respaldo...");
-                        // Usar el callback asíncrono nativo de getSession
-                        var fallbackToDriverChange = function() {
-                            debugLog("- Iniciando fetchFallback(DriverChange)...");
-                            api.call('Get', {
-                                typeName: 'DriverChange',
-                                search: {
-                                    deviceSearch: { id: currentDevice.id },
-                                    fromDate: new Date(Date.now() - 3600000).toISOString()
-                                }
-                            }, function(changes) {
-                                if (changes && changes.length > 0 && changes[0].driver && changes[0].driver.id) {
-                                    loadApp(changes[0].driver);
-                                } else {
-                                    // NO PODEMOS USAR UnknownDriverId.
-                                    // Si todo falla, forzamos la búsqueda de cualquier usuario activo como último y desesperado recurso
-                                    api.call('Get', { typeName: 'User', resultsLimit: 1 }, function(anyUsers) {
-                                        if (anyUsers && anyUsers.length > 0) {
-                                            debugLog("- ADVERTENCIA: Usando un usuario genérico.");
-                                            loadApp({ id: anyUsers[0].id });
-                                        } else {
-                                            debugLog("- ERROR FATAL: No drivers found.");
-                                        }
-                                    });
-                                }
-                            }, function() {
-                                // Mismo fallback en caso de error
-                                api.call('Get', { typeName: 'User', resultsLimit: 1 }, function(anyUsers) {
-                                    if (anyUsers && anyUsers.length > 0) {
-                                        debugLog("- ADVERTENCIA: Usando usuario tras error HTTP.");
-                                        loadApp({ id: anyUsers[0].id });
-                                    }
-                                });
-                            });
-                        };
+                    var resolveUserByName = function(userNameString) {
+                        debugLog("- Consultando API para convertir nombre a ID: " + userNameString);
+                        api.call('Get', {
+                            typeName: 'User',
+                            search: { name: userNameString }
+                        }, function(users) {
+                            if (users && users.length > 0) {
+                                debugLog("- Conductor convertido correctamente a ID: " + users[0].id);
+                                loadApp({ id: users[0].id });
+                            } else {
+                                debugLog("- Ese nombre no produjo un usuario válido. Rescate final...");
+                                fallbackToDriverChange();
+                            }
+                        }, function(err) {
+                            debugLog("- Falla en consulta de usuario: " + err.message);
+                            fallbackToDriverChange();
+                        });
+                    };
 
+                    var fallbackToDriverChange = function() {
+                        debugLog("- Iniciando fetchFallback(DriverChange)...");
+                        api.call('Get', {
+                            typeName: 'DriverChange',
+                            search: {
+                                deviceSearch: { id: currentDevice.id },
+                                fromDate: new Date(Date.now() - 3600000).toISOString()
+                            }
+                        }, function(changes) {
+                            if (changes && changes.length > 0 && changes[0].driver && changes[0].driver.id && changes[0].driver.id !== 'UnknownDriverId') {
+                                debugLog("- Encontrado conductor histórico válido: " + changes[0].driver.id);
+                                loadApp(changes[0].driver);
+                            } else {
+                                debugLog("- ERROR FATAL: No hay conductores válidos o es UnknownDriverId.");
+                                loadApp({ id: 'UnknownDriverId' }); // Esto forzará el mensaje de error final
+                            }
+                        }, function() {
+                            loadApp({ id: 'UnknownDriverId' });
+                        });
+                    };
+
+                    if (typeof rawDriver === 'string') {
+                        // En Geotab Drive, "state.driver" a menudo es el username (pepe@empresa.com) o (Pepe) y no el código {id: "b2F"}
+                        if (rawDriver.indexOf('@') === -1 && rawDriver.indexOf('b') === 0 && rawDriver.length < 10) {
+                            debugLog("- state.driver es directamente el ID geootab: " + rawDriver);
+                            loadApp({ id: rawDriver });
+                        } else {
+                            debugLog("- state.driver es un username string.");
+                            resolveUserByName(rawDriver);
+                        }
+                    } else if (rawDriver && rawDriver.id) {
+                        if (rawDriver.id.indexOf('@') === -1 && rawDriver.id.indexOf('b') === 0 && rawDriver.id.length < 10) {
+                            debugLog("- state.driver es objeto con ID nativo: " + rawDriver.id);
+                            loadApp(rawDriver);
+                        } else {
+                            debugLog("- state.driver.id parece ser un username string.");
+                            resolveUserByName(rawDriver.id);
+                        }
+                    } else {
+                        debugLog("- Driver local vacío. Intento de sesión remota...");
                         try {
                             if (typeof api.getSession === 'function') {
                                 api.getSession(function(credentials, server) {
                                     var userName = '';
                                     if (credentials && credentials.userName) {
                                         userName = credentials.userName;
-                                    } else if (server) { // a veces server contiene el objeto
-                                        userName = server.userName || '';
-                                    }
-                                    
-                                    debugLog("- Session detectada. User: " + userName);
+                                    } else if (server) { userName = server.userName || ''; }
                                     
                                     if (userName) {
-                                        api.call('Get', {
-                                            typeName: 'User',
-                                            search: { name: userName }
-                                        }, function(users) {
-                                            if (users && users.length > 0) {
-                                                loadApp({ id: users[0].id });
-                                            } else {
-                                                fallbackToDriverChange();
-                                            }
-                                        }, function() { fallbackToDriverChange(); });
+                                        resolveUserByName(userName);
                                     } else {
                                         fallbackToDriverChange();
                                     }
@@ -562,7 +556,6 @@
                                 fallbackToDriverChange();
                             }
                         } catch(e) {
-                            debugLog("- Excepción getSession: " + e.message);
                             fallbackToDriverChange();
                         }
                     }
