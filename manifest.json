@@ -1,34 +1,16 @@
 {
-  "name": "Inspeccion Rapida",
-  "version": "1.0.0",
-  "supportEmail": "support@example.com",
-  "isDriveAddin": true,
-  "items": [
-    {
-       "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/",
-       "path": "DriveDVIR",
-       "menuName": {
-            "en": "Quick Inspection 1",
-            "es": "Inspección 1 (Drive)"
+    "name": "Inspeccion Rapida",
+    "supportEmail": "soporte@tecnoflotas.com",
+    "version": "1.1.0",
+    "items": [
+        {
+            "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/index.html",
+            "path": "DriveAppLink/",
+            "menuName": {
+                "en": "Quick Inspection",
+                "es": "Inspección Rápida"
+            }
         }
-    },
-    {
-       "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/",
-       "path": "ActivityDVIR/",
-       "isDriveAddin": true,
-       "menuName": {
-            "en": "Quick Inspection 2",
-            "es": "Inspección 2 (Activity)"
-        }
-    },
-    {
-       "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/",
-       "path": "driveAppLink",
-       "menuName": {
-            "en": "Quick Inspection 3",
-            "es": "Inspección 3 (AppLink)"
-        }
-    }
-  ],
-  "isSigned": false
+    ],
+    "isSigned": false
 }

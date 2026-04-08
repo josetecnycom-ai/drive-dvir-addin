@@ -55,8 +55,7 @@
     </div>
 
     <script>
-        // Use standard non-reserved path for Drive Addin
-        geotab.addin.DriveDVIR = function (api, state) {
+        geotab.addin.DriveAppLink = function (api, state) {
             let currentDevice = null;
             let currentDriver = null;
             const defectListId = 'b28E9'; 
@@ -245,10 +244,8 @@
                 blur: function (api, state) {}
             };
         };
-        // Aliases para el script de diagnóstico múltiple
-        geotab.addin.ActivityDVIR = geotab.addin.DriveDVIR;
-        geotab.addin.driveAppLink = geotab.addin.DriveDVIR;
-        geotab.addin.ActivityFeedback = geotab.addin.DriveDVIR;
+        // Alias de compatibilidad
+        geotab.addin.DriveDVIR = geotab.addin.DriveAppLink;
     </script>
 </body>
 </html>
