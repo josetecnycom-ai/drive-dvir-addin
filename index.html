@@ -72,22 +72,19 @@
             const renderDefects = function() {
                 elDefectsList.innerHTML = '';
 
-                // Obtenemos la DefectList directamente por ID para no mezclar con otras listas
+                // Drive API no soporta DefectList, usamos Defect con defectListSearch
                 api.call('Get', {
-                    typeName: 'DefectList',
-                    search: { id: defectListId }
-                }, function(lists) {
-                    if (!lists || lists.length === 0) {
-                        elDefectsList.innerHTML = '<li style="padding:12px 0;">Lista de defectos no encontrada (ID: ' + defectListId + ').</li>';
+                    typeName: 'Defect',
+                    search: { defectListSearch: { id: defectListId } }
+                }, function(defects) {
+                    if (!defects || defects.length === 0) {
+                        elDefectsList.innerHTML = '<li style="padding:12px 0;">No se encontraron defectos en la lista (ID: ' + defectListId + ').</li>';
                         elLoading.style.display = 'none';
                         elInspectionForm.style.display = 'block';
                         return;
                     }
 
-                    var defectList = lists[0];
-                    var rootDefects = defectList.defects || [];
-
-                    // Aplanar recursivamente: solo mostrar los items hoja (sin hijos)
+                    // Aplanar recursivamente: mostrar items hoja (sin hijos) de la lista b28E9
                     var allLeafDefects = [];
                     function flattenDefects(items) {
                         items.forEach(function(d) {
@@ -98,10 +95,10 @@
                             }
                         });
                     }
-                    flattenDefects(rootDefects);
+                    flattenDefects(defects);
 
                     if (allLeafDefects.length === 0) {
-                        allLeafDefects = rootDefects;
+                        allLeafDefects = defects;
                     }
 
                     elDefectsList.innerHTML = '';
@@ -135,7 +132,7 @@
                     elLoading.style.display = 'none';
                     elInspectionForm.style.display = 'block';
                 }, function(error) {
-                    showError('Error cargando lista de defectos: ' + (error.message || error));
+                    showError('Error cargando defectos: ' + (error.message || error));
                 });
             };
 
