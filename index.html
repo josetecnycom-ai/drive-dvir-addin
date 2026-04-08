@@ -372,7 +372,8 @@
             };
 
             const showError = (msg) => {
-                elLoading.style.display = 'none';
+                // No ocultamos elLoading para que se queden visibles los logs de depuración (debugLog)
+                // elLoading.style.display = 'none'; 
                 elInspectionForm.style.display = 'none';
                 elErrorText.textContent = msg;
                 elErrorMessage.style.display = 'block';
@@ -411,11 +412,13 @@
                         document.getElementById('inspection-comments').value = '';
                         elSuccessMessage.style.display = 'none';
                         elInspectionForm.style.display = 'block';
+                        elLoading.style.display = 'none';
                     });
                     
                     document.getElementById('btn-retry').addEventListener('click', () => {
                         elErrorMessage.style.display = 'none';
                         elInspectionForm.style.display = 'block';
+                        elLoading.style.display = 'none';
                     });
 
                     callback();
@@ -536,6 +539,9 @@
                             debugLog("- state.driver.id parece ser un username string.");
                             resolveUserByName(rawDriver.id);
                         }
+                    } else if (rawDriver && rawDriver.name) {
+                        debugLog("- state.driver.name extraído de objeto...");
+                        resolveUserByName(rawDriver.name);
                     } else {
                         debugLog("- Driver local vacío. Intento de sesión remota...");
                         try {
