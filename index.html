@@ -208,37 +208,35 @@
                     newlySelectedIds = checked.map(function(cb) { return cb.value; });
                 }
 
-                // Primero consultamos el DVIRLog anterior para heredar defectos sin reparar (requerido por Geotab)
-                var fromDate = new Date(Date.now() - 30 * 24 * 3600000).toISOString(); // Ultimos 30 dias
+                // Consultar el DVIRLog anterior (últimos 365 días) para heredar defectos abiertos
+                var fromDate = new Date(Date.now() - 365 * 24 * 3600000).toISOString();
                 var toDate = new Date().toISOString();
 
                 api.call('Get', {
                     typeName: 'DVIRLog',
                     search: {
                         deviceSearch: { id: currentDevice.id },
+                        defectListSearch: { id: defectListId },
                         fromDate: fromDate,
                         toDate: toDate
                     }
                 }, function(logs) {
-                    // Incluir TODOS los defectos del log anterior que no estén reparados
-                    // (esto incluye NotRepaired Y NotRequired, ambos deben reconocerse)
                     var previousUnresolved = [];
                     if (logs && logs.length > 0) {
                         var lastLog = logs[logs.length - 1];
-                        if (lastLog.defectRemarks) {
-                            lastLog.defectRemarks.forEach(function(dr) {
-                                if (dr.repairStatus !== 'Repaired' && dr.defect && dr.defect.id) {
-                                    // Solo incluir si el conductor no lo seleccionó ya
-                                    if (newlySelectedIds.indexOf(dr.defect.id) === -1) {
-                                        previousUnresolved.push({
-                                            defect: { id: dr.defect.id },
-                                            remark: dr.remark || '',
-                                            repairStatus: dr.repairStatus || 'NotRepaired'
-                                        });
-                                    }
+                        // Geotab usa 'defects' en versiones recientes, 'defectRemarks' en versiones antiguas
+                        var prevDefects = lastLog.defects || lastLog.defectRemarks || [];
+                        prevDefects.forEach(function(dr) {
+                            if (dr.repairStatus !== 'Repaired' && dr.defect && dr.defect.id) {
+                                if (newlySelectedIds.indexOf(dr.defect.id) === -1) {
+                                    previousUnresolved.push({
+                                        defect: { id: dr.defect.id },
+                                        remark: dr.remark || '',
+                                        repairStatus: dr.repairStatus || 'NotRepaired'
+                                    });
                                 }
-                            });
-                        }
+                            }
+                        });
                     }
 
                     var defectLog = {
@@ -251,13 +249,13 @@
                     };
 
                     if (!isSafe) {
-                        var newDefectRemarks = newlySelectedIds.map(function(id) {
+                        var newDefects = newlySelectedIds.map(function(id) {
                             return { defect: { id: id }, remark: '', repairStatus: 'NotRepaired' };
                         });
-                        defectLog.defectRemarks = newDefectRemarks.concat(previousUnresolved);
+                        // 'defects' es el nombre correcto en la API de Geotab
+                        defectLog.defects = newDefects.concat(previousUnresolved);
                     } else if (previousUnresolved.length > 0) {
-                        // En inspección segura, reconocemos los defectos previos con su estado original
-                        defectLog.defectRemarks = previousUnresolved;
+                        defectLog.defects = previousUnresolved;
                     }
 
                     api.call('Add', {
@@ -270,8 +268,8 @@
                         showError('No se pudo enviar la inspección: ' + (error.message || error));
                     });
 
-                }, function() {
-                    // Si no podemos leer logs anteriores, intentamos enviar sin ellos
+                }, function(err) {
+                    // Fallback si la query de logs anteriores falla
                     var defectLog = {
                         device: { id: currentDevice.id },
                         driver: { id: currentDriver.id },
@@ -281,7 +279,7 @@
                         remark: remark || ''
                     };
                     if (!isSafe) {
-                        defectLog.defectRemarks = newlySelectedIds.map(function(id) {
+                        defectLog.defects = newlySelectedIds.map(function(id) {
                             return { defect: { id: id }, remark: '', repairStatus: 'NotRepaired' };
                         });
                     }
