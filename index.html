@@ -5,7 +5,180 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <title>Inspección Rápida</title>
-    <link rel="stylesheet" href="css/style.css">
+    <style>
+        :root {
+            --primary-color: #2e68ff;
+            --danger-color: #e53935;
+            --success-color: #43a047;
+            --text-color: #333;
+            --bg-color: #f5f5f5;
+            --card-bg: #fff;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #drive-dvir-app {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            margin: 0 0 5px;
+            color: var(--primary-color);
+        }
+
+        header p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .visible {
+            display: block !important;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #loading {
+            text-align: center;
+            font-size: 18px;
+            color: #666;
+            padding: 40px 0;
+        }
+
+        .actions-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            transition: opacity 0.2s;
+            width: 100%;
+        }
+
+        .btn:active {
+            opacity: 0.8;
+        }
+
+        .btn-large {
+            padding: 20px;
+            font-size: 18px;
+        }
+
+        .btn-primary {
+            background-color: var(--success-color);
+            color: white;
+            box-shadow: 0 4px 6px rgba(67, 160, 71, 0.2);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+            box-shadow: 0 4px 6px rgba(229, 57, 53, 0.2);
+        }
+
+        #defects-container {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-top: 20px;
+        }
+
+        #defects-container h3 {
+            margin-top: 0;
+            font-size: 18px;
+        }
+
+        #defects-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+
+        #defects-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+
+        #defects-list li:last-child {
+            border-bottom: none;
+        }
+
+        #defects-list input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            margin-right: 15px;
+            cursor: pointer;
+        }
+
+        .comments-section {
+            margin-top: 20px;
+        }
+
+        .comments-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .comments-section textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: var(--border-radius);
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        #success-message {
+            text-align: center;
+            padding: 40px 20px;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+        }
+
+        .icon-success {
+            font-size: 60px;
+            color: var(--success-color);
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
     <div id="drive-dvir-app">
@@ -55,7 +228,189 @@
         </main>
     </div>
 
-    <!-- Script de inicialización de Drive Addin -->
-    <script src="js/main.js"></script>
+    <!-- Script enbebido para evitar bloqueos CSP de la vista web -->
+    <script>
+        // Usamos el path "driveAppLink" tal como el de tu AdBlue para garantizar que aparece en el mismo sitio
+        geotab.addin.driveAppLink = function (api, state) {
+            let currentDevice = null;
+            let currentDriver = null;
+            const defectListId = 'b28E9'; 
+            
+            let elVehicleName = null;
+            let elLoading = null;
+            let elInspectionForm = null;
+            let elDefectsContainer = null;
+            let elDefectsList = null;
+            let elSuccessMessage = null;
+            let elErrorMessage = null;
+            let elErrorText = null;
+
+            const renderDefects = () => {
+                elDefectsList.innerHTML = '';
+                
+                api.call("Get", {
+                    typeName: "Defect",
+                    search: { defectListSearch: { id: defectListId } }
+                }, function(defects) {
+                    if (!defects || defects.length === 0) {
+                        elDefectsList.innerHTML = '<li>No se encontraron defectos para esta lista.</li>';
+                        elLoading.classList.add('hidden');
+                        elInspectionForm.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    defects.forEach(defect => {
+                        const li = document.createElement('li');
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = 'defect-' + defect.id;
+                        checkbox.value = defect.id;
+                        checkbox.classList.add('defect-checkbox');
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = 'defect-' + defect.id;
+                        label.textContent = defect.name;
+                        
+                        li.appendChild(checkbox);
+                        li.appendChild(label);
+                        
+                        elDefectsList.appendChild(li);
+                    });
+                    
+                    elLoading.classList.add('hidden');
+                    elInspectionForm.classList.remove('hidden');
+                }, function(error) {
+                    showError("Error cargando defectos: " + (error.message || error));
+                });
+            };
+
+            const submitDVIR = (isSafe) => {
+                elInspectionForm.classList.add('hidden');
+                elLoading.classList.remove('hidden');
+                
+                let defectLog = {
+                    device: { id: currentDevice.id },
+                    driver: { id: currentDriver.id },
+                    dateTime: new Date().toISOString(),
+                    isSafeToOperate: isSafe
+                };
+
+                let remark = document.getElementById('inspection-comments').value;
+                if(remark) {
+                   defectLog.remark = remark; 
+                }
+
+                if (!isSafe) {
+                    const selectedDefects = Array.from(document.querySelectorAll('.defect-checkbox:checked'))
+                        .map(cb => ({
+                            defect: { id: cb.value },
+                            repairStatus: "NotRepaired"
+                        }));
+                    
+                    if(selectedDefects.length === 0) {
+                        showError("Debes seleccionar al menos un defecto si el vehículo no es seguro.");
+                        return;
+                    }
+                    defectLog.defectRepairs = selectedDefects;
+                }
+
+                api.call("Add", {
+                    typeName: "DVIRLog",
+                    entity: defectLog
+                }, function(result) {
+                    elLoading.classList.add('hidden');
+                    elSuccessMessage.classList.remove('hidden');
+                }, function(error) {
+                    showError("No se pudo enviar la inspección: " + (error.message || error));
+                });
+            };
+
+            const showError = (msg) => {
+                elLoading.classList.add('hidden');
+                elInspectionForm.classList.add('hidden');
+                elErrorText.textContent = msg;
+                elErrorMessage.classList.remove('hidden');
+            };
+
+            return {
+                initialize: function (api, state, callback) {
+                    elVehicleName = document.getElementById('vehicle-name');
+                    elLoading = document.getElementById('loading');
+                    elInspectionForm = document.getElementById('inspection-form');
+                    elDefectsContainer = document.getElementById('defects-container');
+                    elDefectsList = document.getElementById('defects-list');
+                    elSuccessMessage = document.getElementById('success-message');
+                    elErrorMessage = document.getElementById('error-message');
+                    elErrorText = document.getElementById('error-text');
+
+                    document.getElementById('btn-show-defects').addEventListener('click', () => {
+                        elDefectsContainer.classList.remove('hidden');
+                        document.getElementById('btn-show-defects').style.display = 'none';
+                    });
+                    
+                    document.getElementById('btn-safe').addEventListener('click', () => {
+                        if(confirm("¿Confirmas que el vehículo es seguro y no tiene defectos?")) {
+                            submitDVIR(true);
+                        }
+                    });
+                    
+                    document.getElementById('btn-submit-defects').addEventListener('click', () => {
+                        submitDVIR(false);
+                    });
+                    
+                    document.getElementById('btn-reset').addEventListener('click', () => {
+                        document.getElementById('btn-show-defects').style.display = 'block';
+                        elDefectsContainer.classList.add('hidden');
+                        Array.from(document.querySelectorAll('.defect-checkbox')).forEach(cb => cb.checked = false);
+                        document.getElementById('inspection-comments').value = '';
+                        elSuccessMessage.classList.add('hidden');
+                        elInspectionForm.classList.remove('hidden');
+                    });
+                    
+                    document.getElementById('btn-retry').addEventListener('click', () => {
+                        elErrorMessage.classList.add('hidden');
+                        elInspectionForm.classList.remove('hidden');
+                    });
+
+                    callback();
+                },
+                focus: function (api, state) {
+                    currentDriver = state.driver || (state.deviceInfo && state.deviceInfo.driver) || state.activeUser || state.user; 
+                    currentDevice = state.device || (state.deviceInfo && state.deviceInfo.device) || state.activeDevice;
+
+                    if (!currentDevice || !currentDevice.id) {
+                        showError("No hay un vehículo seleccionado. Navega a la vista de Activos y selecciona un vehículo.");
+                        return;
+                    }
+                    if (!currentDriver || !currentDriver.id) {
+                         showError("No se pudo identificar al conductor.");
+                         return;
+                    }
+
+                    api.call("Get", {
+                        typeName: "Device",
+                        search: { id: currentDevice.id }
+                    }, function(devices) {
+                        if(devices && devices.length > 0) {
+                            elVehicleName.textContent = devices[0].name || "Vehículo " + currentDevice.id;
+                        } else {
+                            elVehicleName.textContent = "Vehículo " + currentDevice.id;
+                        }
+                    }, function(e){
+                        elVehicleName.textContent = "Vehículo " + currentDevice.id;
+                    });
+
+                    elSuccessMessage.classList.add('hidden');
+                    elErrorMessage.classList.add('hidden');
+                    elInspectionForm.classList.add('hidden');
+                    elLoading.classList.remove('hidden');
+
+                    renderDefects();
+                },
+                blur: function (api, state) {}
+            };
+        };
+    </script>
 </body>
 </html>
