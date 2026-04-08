@@ -422,44 +422,51 @@
                         loadApp(currentDriver);
                     } else {
                         // Fallback: obtener el usuario logueado actual a través de la sesión
-                        api.getSession(function(session) {
-                            var userName = (session && session.userName) ? session.userName : '';
-                            
-                            var fetchFallback = function() {
-                                // Último recurso: buscar conductores activos en el vehículo
-                                api.call('Get', {
-                                    typeName: 'DriverChange',
-                                    search: {
-                                        deviceSearch: { id: currentDevice.id },
-                                        fromDate: new Date(Date.now() - 3600000).toISOString()
-                                    }
-                                }, function(changes) {
-                                    if (changes && changes.length > 0) {
-                                        loadApp(changes[0].driver);
-                                    } else {
-                                        // Sin conductor: usar un ID de conductor desconocido estándar de Geotab
-                                        loadApp({ id: 'UnknownDriverId' });
-                                    }
-                                }, function() {
-                                    loadApp({ id: 'UnknownDriverId' });
-                                });
-                            };
-
-                            if (userName) {
-                                api.call('Get', {
-                                    typeName: 'User',
-                                    search: { name: userName }
-                                }, function(users) {
-                                    if (users && users.length > 0) {
-                                        loadApp({ id: users[0].id });
-                                    } else {
-                                        fetchFallback();
-                                    }
-                                }, function() { fetchFallback(); });
-                            } else {
-                                fetchFallback();
+                        var session = null;
+                        try {
+                            if (typeof api.getSession === 'function') {
+                                session = api.getSession();
                             }
-                        });
+                        } catch (e) {
+                            // ignorar si no está disponible
+                        }
+                        
+                        var userName = (session && session.userName) ? session.userName : '';
+                        
+                        var fetchFallback = function() {
+                            // Último recurso: buscar conductores activos en el vehículo
+                            api.call('Get', {
+                                typeName: 'DriverChange',
+                                search: {
+                                    deviceSearch: { id: currentDevice.id },
+                                    fromDate: new Date(Date.now() - 3600000).toISOString()
+                                }
+                            }, function(changes) {
+                                if (changes && changes.length > 0) {
+                                    loadApp(changes[0].driver);
+                                } else {
+                                    // Sin conductor: usar un ID de conductor desconocido estándar de Geotab
+                                    loadApp({ id: 'UnknownDriverId' });
+                                }
+                            }, function() {
+                                loadApp({ id: 'UnknownDriverId' });
+                            });
+                        };
+
+                        if (userName) {
+                            api.call('Get', {
+                                typeName: 'User',
+                                search: { name: userName }
+                            }, function(users) {
+                                if (users && users.length > 0) {
+                                    loadApp({ id: users[0].id });
+                                } else {
+                                    fetchFallback();
+                                }
+                            }, function() { fetchFallback(); });
+                        } else {
+                            fetchFallback();
+                        }
                     }
                 },
                 blur: function (api, state) {}
