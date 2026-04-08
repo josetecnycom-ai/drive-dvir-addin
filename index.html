@@ -207,39 +207,75 @@
                     callback();
                 },
                 focus: function (api, state) {
-                    currentDriver = state.driver || (state.deviceInfo && state.deviceInfo.driver) || state.activeUser || state.user; 
-                    currentDevice = state.device || (state.deviceInfo && state.deviceInfo.device) || state.activeDevice;
-
-                    if (!currentDevice || !currentDevice.id) {
-                        elVehicleName.innerHTML = "No hay un vehículo seleccionado.<br><small style='font-size:12px;'>Navega a la vista de Activos de Drive y selecciona uno.</small>";
-                        elLoading.style.display = 'none';
-                        return;
-                    }
-                    if (!currentDriver || !currentDriver.id) {
-                         elVehicleName.innerHTML = "Conductor no válido.<br><small style='font-size:12px;'>Asegúrate de estar logueado.</small>";
-                         elLoading.style.display = 'none';
-                         return;
-                    }
-
-                    api.call("Get", {
-                        typeName: "Device",
-                        search: { id: currentDevice.id }
-                    }, function(devices) {
-                        if(devices && devices.length > 0) {
-                            elVehicleName.textContent = devices[0].name || "Vehículo " + currentDevice.id;
-                        } else {
-                            elVehicleName.textContent = "Vehículo " + currentDevice.id;
-                        }
-                    }, function(e){
-                        elVehicleName.textContent = "Vehículo " + currentDevice.id;
-                    });
+                    currentDevice = state.device || (state.deviceInfo && state.deviceInfo.device) || state.activeDevice || state.activeVehicle;
 
                     elSuccessMessage.style.display = 'none';
                     elErrorMessage.style.display = 'none';
                     elInspectionForm.style.display = 'none';
                     elLoading.style.display = 'block';
 
-                    renderDefects();
+                    if (!currentDevice || !currentDevice.id) {
+                        elVehicleName.innerHTML = 'No hay un vehículo seleccionado.<br><small style="font-size:12px;">Selecciona un vehículo en Drive primero.</small>';
+                        elLoading.style.display = 'none';
+                        return;
+                    }
+
+                    // Intentar obtener conductor del estado primero
+                    currentDriver = state.driver || (state.deviceInfo && state.deviceInfo.driver);
+
+                    // Si no está en el estado, obtener el usuario logueado via API
+                    var loadApp = function(driverObj) {
+                        currentDriver = driverObj;
+
+                        api.call('Get', {
+                            typeName: 'Device',
+                            search: { id: currentDevice.id }
+                        }, function(devices) {
+                            if (devices && devices.length > 0) {
+                                elVehicleName.textContent = devices[0].name || 'Vehículo ' + currentDevice.id;
+                            } else {
+                                elVehicleName.textContent = 'Vehículo ' + currentDevice.id;
+                            }
+                        }, function() {
+                            elVehicleName.textContent = 'Vehículo ' + currentDevice.id;
+                        });
+
+                        renderDefects();
+                    };
+
+                    if (currentDriver && currentDriver.id) {
+                        loadApp(currentDriver);
+                    } else {
+                        // Fallback: obtener el usuario logueado actual
+                        api.call('Get', {
+                            typeName: 'User',
+                            search: { name: state.userName || '' }
+                        }, function(users) {
+                            if (users && users.length > 0) {
+                                loadApp({ id: users[0].id });
+                            } else {
+                                // Último recurso: buscar conductores activos en el vehículo
+                                api.call('Get', {
+                                    typeName: 'DriverChange',
+                                    search: {
+                                        deviceSearch: { id: currentDevice.id },
+                                        fromDate: new Date(Date.now() - 3600000).toISOString()
+                                    }
+                                }, function(changes) {
+                                    if (changes && changes.length > 0) {
+                                        loadApp(changes[0].driver);
+                                    } else {
+                                        // Sin conductor: usar un ID de conductor desconocido estándar de Geotab
+                                        loadApp({ id: 'UnknownDriverId' });
+                                    }
+                                }, function() {
+                                    loadApp({ id: 'UnknownDriverId' });
+                                });
+                            }
+                        }, function() {
+                            loadApp({ id: 'UnknownDriverId' });
+                        });
+                    }
                 },
                 blur: function (api, state) {}
             };
