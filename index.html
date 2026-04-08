@@ -260,13 +260,12 @@
                     };
 
                     if (!isSafe) {
-                        var newDefects = newlySelectedIds.map(function(id) {
+                        var newDefectRemarks = newlySelectedIds.map(function(id) {
                             return { defect: { id: id }, remark: '', repairStatus: 'NotRepaired' };
                         });
-                        // 'defects' es el nombre correcto en la API de Geotab
-                        defectLog.defects = newDefects.concat(previousUnresolved);
+                        defectLog.defectRemarks = newDefectRemarks.concat(previousUnresolved);
                     } else if (previousUnresolved.length > 0) {
-                        defectLog.defects = previousUnresolved;
+                        defectLog.defectRemarks = previousUnresolved;
                     }
 
                     api.call('Add', {
@@ -290,7 +289,7 @@
                         remark: remark || ''
                     };
                     if (!isSafe) {
-                        defectLog.defects = newlySelectedIds.map(function(id) {
+                        defectLog.defectRemarks = newlySelectedIds.map(function(id) {
                             return { defect: { id: id }, remark: '', repairStatus: 'NotRepaired' };
                         });
                     }
