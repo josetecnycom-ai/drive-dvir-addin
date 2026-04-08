@@ -477,22 +477,9 @@
                         loadApp(currentDriver);
                     } else {
                         debugLog("- Buscando driver de respaldo...");
-                        // Fallback: obtener el usuario logueado actual a través de la sesión
-                        var session = null;
-                        try {
-                            if (typeof api.getSession === 'function') {
-                                session = api.getSession();
-                            }
-                        } catch (e) {
-                            debugLog("- Excepción getSession");
-                        }
-                        
-                        var userName = (session && session.userName) ? session.userName : '';
-                        debugLog("- UserName encontrado: " + userName);
-                        
-                        var fetchFallback = function() {
+                        // Usar el callback asíncrono nativo de getSession
+                        var fallbackToDriverChange = function() {
                             debugLog("- Iniciando fetchFallback(DriverChange)...");
-                            // Último recurso: buscar conductores activos en el vehículo
                             api.call('Get', {
                                 typeName: 'DriverChange',
                                 search: {
@@ -500,31 +487,64 @@
                                     fromDate: new Date(Date.now() - 3600000).toISOString()
                                 }
                             }, function(changes) {
-                                if (changes && changes.length > 0) {
+                                if (changes && changes.length > 0 && changes[0].driver && changes[0].driver.id) {
                                     loadApp(changes[0].driver);
                                 } else {
-                                    // Sin conductor: usar un ID de conductor desconocido estándar de Geotab
-                                    loadApp({ id: 'UnknownDriverId' });
+                                    // NO PODEMOS USAR UnknownDriverId.
+                                    // Si todo falla, forzamos la búsqueda de cualquier usuario activo como último y desesperado recurso
+                                    api.call('Get', { typeName: 'User', resultsLimit: 1 }, function(anyUsers) {
+                                        if (anyUsers && anyUsers.length > 0) {
+                                            debugLog("- ADVERTENCIA: Usando un usuario genérico.");
+                                            loadApp({ id: anyUsers[0].id });
+                                        } else {
+                                            debugLog("- ERROR FATAL: No drivers found.");
+                                        }
+                                    });
                                 }
                             }, function() {
-                                loadApp({ id: 'UnknownDriverId' });
+                                // Mismo fallback en caso de error
+                                api.call('Get', { typeName: 'User', resultsLimit: 1 }, function(anyUsers) {
+                                    if (anyUsers && anyUsers.length > 0) {
+                                        debugLog("- ADVERTENCIA: Usando usuario tras error HTTP.");
+                                        loadApp({ id: anyUsers[0].id });
+                                    }
+                                });
                             });
                         };
 
-                        if (userName) {
-                            debugLog("- Llamando Get User con name=" + userName);
-                            api.call('Get', {
-                                typeName: 'User',
-                                search: { name: userName }
-                            }, function(users) {
-                                if (users && users.length > 0) {
-                                    loadApp({ id: users[0].id });
-                                } else {
-                                    fetchFallback();
-                                }
-                            }, function() { fetchFallback(); });
-                        } else {
-                            fetchFallback();
+                        try {
+                            if (typeof api.getSession === 'function') {
+                                api.getSession(function(credentials, server) {
+                                    var userName = '';
+                                    if (credentials && credentials.userName) {
+                                        userName = credentials.userName;
+                                    } else if (server) { // a veces server contiene el objeto
+                                        userName = server.userName || '';
+                                    }
+                                    
+                                    debugLog("- Session detectada. User: " + userName);
+                                    
+                                    if (userName) {
+                                        api.call('Get', {
+                                            typeName: 'User',
+                                            search: { name: userName }
+                                        }, function(users) {
+                                            if (users && users.length > 0) {
+                                                loadApp({ id: users[0].id });
+                                            } else {
+                                                fallbackToDriverChange();
+                                            }
+                                        }, function() { fallbackToDriverChange(); });
+                                    } else {
+                                        fallbackToDriverChange();
+                                    }
+                                });
+                            } else {
+                                fallbackToDriverChange();
+                            }
+                        } catch(e) {
+                            debugLog("- Excepción getSession: " + e.message);
+                            fallbackToDriverChange();
                         }
                     }
                 },
