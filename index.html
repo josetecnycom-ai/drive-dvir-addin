@@ -69,21 +69,25 @@
             let elErrorMessage = null;
             let elErrorText = null;
 
-            const renderDefects = () => {
+            const renderDefects = function() {
                 elDefectsList.innerHTML = '';
 
+                // Obtenemos la DefectList directamente por ID para no mezclar con otras listas
                 api.call('Get', {
-                    typeName: 'Defect',
-                    search: { defectListSearch: { id: defectListId } }
-                }, function(defects) {
-                    if (!defects || defects.length === 0) {
-                        elDefectsList.innerHTML = '<li style="padding: 12px 0;">No se encontraron defectos en esta lista.</li>';
+                    typeName: 'DefectList',
+                    search: { id: defectListId }
+                }, function(lists) {
+                    if (!lists || lists.length === 0) {
+                        elDefectsList.innerHTML = '<li style="padding:12px 0;">Lista de defectos no encontrada (ID: ' + defectListId + ').</li>';
                         elLoading.style.display = 'none';
                         elInspectionForm.style.display = 'block';
                         return;
                     }
 
-                    // Aplanar la jerarquía: si un defecto tiene hijos, mostrar los hijos; si no, mostrarlo directamente
+                    var defectList = lists[0];
+                    var rootDefects = defectList.defects || [];
+
+                    // Aplanar recursivamente: solo mostrar los items hoja (sin hijos)
                     var allLeafDefects = [];
                     function flattenDefects(items) {
                         items.forEach(function(d) {
@@ -94,11 +98,10 @@
                             }
                         });
                     }
-                    flattenDefects(defects);
+                    flattenDefects(rootDefects);
 
-                    // Si no hay hojas, mostrar todos los items directamente
                     if (allLeafDefects.length === 0) {
-                        allLeafDefects = defects;
+                        allLeafDefects = rootDefects;
                     }
 
                     elDefectsList.innerHTML = '';
@@ -132,48 +135,112 @@
                     elLoading.style.display = 'none';
                     elInspectionForm.style.display = 'block';
                 }, function(error) {
-                    showError('Error cargando defectos: ' + (error.message || error));
+                    showError('Error cargando lista de defectos: ' + (error.message || error));
                 });
             };
 
-            const submitDVIR = (isSafe) => {
+            const submitDVIR = function(isSafe) {
                 elInspectionForm.style.display = 'none';
                 elLoading.style.display = 'block';
 
                 var remark = document.getElementById('inspection-comments').value;
-
-                var defectLog = {
-                    device: { id: currentDevice.id },
-                    driver: { id: currentDriver.id },
-                    dateTime: new Date().toISOString(),
-                    isSafeToOperate: isSafe,
-                    defectList: { id: defectListId },  // Requerido por la API
-                    remark: remark || ''
-                };
-
+                var newlySelectedIds = [];
                 if (!isSafe) {
                     var checked = Array.from(document.querySelectorAll('.defect-checkbox:checked'));
                     if (checked.length === 0) {
                         showError('Selecciona al menos un defecto.');
                         return;
                     }
-                    defectLog.defectRemarks = checked.map(function(cb) {
-                        return {
-                            defect: { id: cb.value },
-                            remark: '',
-                            repairStatus: 'NotRepaired'
-                        };
-                    });
+                    newlySelectedIds = checked.map(function(cb) { return cb.value; });
                 }
 
-                api.call('Add', {
+                // Primero consultamos el DVIRLog anterior para heredar defectos sin reparar (requerido por Geotab)
+                var fromDate = new Date(Date.now() - 30 * 24 * 3600000).toISOString(); // Ultimos 30 dias
+                var toDate = new Date().toISOString();
+
+                api.call('Get', {
                     typeName: 'DVIRLog',
-                    entity: defectLog
-                }, function(result) {
-                    elLoading.style.display = 'none';
-                    elSuccessMessage.style.display = 'block';
-                }, function(error) {
-                    showError('No se pudo enviar la inspección: ' + (error.message || error));
+                    search: {
+                        deviceSearch: { id: currentDevice.id },
+                        fromDate: fromDate,
+                        toDate: toDate
+                    }
+                }, function(logs) {
+                    // Defectos sin reparar del log anterior que no hayan sido marcados ya
+                    var previousUnresolved = [];
+                    if (logs && logs.length > 0) {
+                        var lastLog = logs[logs.length - 1];
+                        if (lastLog.defectRemarks) {
+                            lastLog.defectRemarks.forEach(function(dr) {
+                                if (dr.repairStatus === 'NotRepaired' && dr.defect && dr.defect.id) {
+                                    // Solo incluir si el conductor no lo selecciono ya
+                                    if (newlySelectedIds.indexOf(dr.defect.id) === -1) {
+                                        previousUnresolved.push({
+                                            defect: { id: dr.defect.id },
+                                            remark: '',
+                                            repairStatus: 'NotRepaired'
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    }
+
+                    var defectLog = {
+                        device: { id: currentDevice.id },
+                        driver: { id: currentDriver.id },
+                        dateTime: new Date().toISOString(),
+                        isSafeToOperate: isSafe,
+                        defectList: { id: defectListId },
+                        remark: remark || ''
+                    };
+
+                    if (!isSafe) {
+                        var newDefectRemarks = newlySelectedIds.map(function(id) {
+                            return { defect: { id: id }, remark: '', repairStatus: 'NotRepaired' };
+                        });
+                        defectLog.defectRemarks = newDefectRemarks.concat(previousUnresolved);
+                    } else if (previousUnresolved.length > 0) {
+                        // Incluso en inspeccion segura, hay que reconocer los defectos previos
+                        defectLog.defectRemarks = previousUnresolved.map(function(dr) {
+                            return { defect: dr.defect, remark: '', repairStatus: 'NotRepaired' };
+                        });
+                    }
+
+                    api.call('Add', {
+                        typeName: 'DVIRLog',
+                        entity: defectLog
+                    }, function() {
+                        elLoading.style.display = 'none';
+                        elSuccessMessage.style.display = 'block';
+                    }, function(error) {
+                        showError('No se pudo enviar la inspección: ' + (error.message || error));
+                    });
+
+                }, function() {
+                    // Si no podemos leer logs anteriores, intentamos enviar sin ellos
+                    var defectLog = {
+                        device: { id: currentDevice.id },
+                        driver: { id: currentDriver.id },
+                        dateTime: new Date().toISOString(),
+                        isSafeToOperate: isSafe,
+                        defectList: { id: defectListId },
+                        remark: remark || ''
+                    };
+                    if (!isSafe) {
+                        defectLog.defectRemarks = newlySelectedIds.map(function(id) {
+                            return { defect: { id: id }, remark: '', repairStatus: 'NotRepaired' };
+                        });
+                    }
+                    api.call('Add', {
+                        typeName: 'DVIRLog',
+                        entity: defectLog
+                    }, function() {
+                        elLoading.style.display = 'none';
+                        elSuccessMessage.style.display = 'block';
+                    }, function(error) {
+                        showError('No se pudo enviar la inspección: ' + (error.message || error));
+                    });
                 });
             };
 
