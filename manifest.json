@@ -5,11 +5,28 @@
   "isDriveAddin": true,
   "items": [
     {
-       "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/index.html",
+       "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/",
        "path": "DriveDVIR",
        "menuName": {
-            "en": "Quick Inspection",
-            "es": "Inspección Rápida"
+            "en": "Quick Inspection 1",
+            "es": "Inspección 1 (Drive)"
+        }
+    },
+    {
+       "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/",
+       "path": "ActivityDVIR/",
+       "isDriveAddin": true,
+       "menuName": {
+            "en": "Quick Inspection 2",
+            "es": "Inspección 2 (Activity)"
+        }
+    },
+    {
+       "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/",
+       "path": "driveAppLink",
+       "menuName": {
+            "en": "Quick Inspection 3",
+            "es": "Inspección 3 (AppLink)"
         }
     }
   ],
