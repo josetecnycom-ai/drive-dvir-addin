@@ -452,7 +452,7 @@
 
                     // Intentar obtener conductor del estado local de la APP
                     var rawDriver = state.driver || (state.deviceInfo && state.deviceInfo.driver) || state.activeUser || state.driverId;
-                    var currentDriver = null;
+                    currentDriver = null; // Quitado el 'var' para no hacer shadowing de la variable global let currentDriver = null; de la línea 60
                     
                     var loadApp = function(driverObj) {
                         debugLog("- Ejecutando loadApp resolviendo info de vehículo...");
