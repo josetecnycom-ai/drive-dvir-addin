@@ -345,15 +345,43 @@
                                 defectLog.dVIRDefects = previousUnresolved;
                             }
 
-                            api.call('Add', {
+                            var calls = [];
+
+                            if (typeof lastLog !== 'undefined' && lastLog) {
+                                var needsCert = false;
+                                if (!lastLog.certifyDate) {
+                                    var hasDefects = (lastLog.dVIRDefects && lastLog.dVIRDefects.length > 0) || 
+                                                     (lastLog.defects && lastLog.defects.length > 0) || 
+                                                     (lastLog.defectRemarks && lastLog.defectRemarks.length > 0);
+                                    if (hasDefects) {
+                                        needsCert = true;
+                                    }
+                                }
+                                
+                                if (needsCert) {
+                                    debugLog("Certificando inspección previa automáticamente...");
+                                    var logToCertify = JSON.parse(JSON.stringify(lastLog));
+                                    logToCertify.certifyDate = new Date().toISOString();
+                                    logToCertify.certifyUser = { id: driverIdToUse };
+                                    logToCertify.certifyRemark = "Certificado automáticamente antes de nueva inspección.";
+                                    calls.push(["Set", {
+                                        typeName: "DVIRLog",
+                                        entity: logToCertify
+                                    }]);
+                                }
+                            }
+
+                            calls.push(["Add", {
                                 typeName: 'DVIRLog',
                                 entity: defectLog
-                            }, function() {
-                                debugLog("Add completado. Redirigiendo a éxito.");
+                            }]);
+
+                            api.multiCall(calls, function() {
+                                debugLog("Transacción completada. Redirigiendo a éxito.");
                                 elLoading.style.display = 'none';
                                 elSuccessMessage.style.display = 'block';
                             }, function(error) {
-                                debugLog("ERROR en Add DVIRLog: " + (error.message || error));
+                                debugLog("ERROR en envío: " + (error.message || error));
                                 showError('Payload Rechazado: ' + JSON.stringify(defectLog) + ' || ERROR: ' + (error.message || error));
                             });
 
