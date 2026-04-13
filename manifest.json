@@ -1,14 +1,16 @@
 {
-    "name": "Inspeccion Rapida",
+    "name": "Inspeccion Diaria",
     "supportEmail": "soporte@tecnoflotas.com",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "items": [
         {
             "url": "https://josetecnycom-ai.github.io/drive-dvir-addin/index.html",
             "path": "DriveAppLink/",
+            "weight": -100,
+            "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjRkY5ODAwIiBkPSJNMTksM0gxNC44MkMxNC40LDEuODQgMTMuMywxIDEyLDFTOS42LDEuODQgOS4xOCwzSDVDMy45LDMgMywzLjkgMyw1VjE5QTIsMiAwIDAsMCA1LDIxSDE5QTIsMiAwIDAsMCAyMSwxOVY1QTIsMiAwIDAsMCAxOSwzTTEyLDNBMSwxIDAgMCwxIDEzLDRBMSwxIDAgMCwxIDEyLDVBMSwxIDAgMCwxIDExLDRBMSwxIDAgMCwxIDEyLDNNMTYuMjgsMTAuNjFMMTAuNjQsMTYuMjZMNy43NSwxMy4zN0w5LjE2LDExLjk2TDEwLjY0LDEzLjQ0TDE0Ljg3LDkuMjJMMTYuMjgsMTAuNjFaIi8+PC9zdmc+",
             "menuName": {
-                "en": "Quick Inspection",
-                "es": "Inspección Rápida"
+                "en": "Daily Inspection",
+                "es": "Inspección Diaria"
             }
         }
     ],
